@@ -3,323 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PTCG 得卡挑戰 | 全球數據終端 v2.5</title>
+    <title>PTCG 得卡挑戰 | 數據分析終端 v2.9</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
-    <!-- Firebase SDKs -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, onSnapshot, query, doc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-
-        /** * --- 重要：GitHub 部署配置 ---
-         * 請在此處填入您的 Firebase 專案配置 (API Key 等)
-         */
-        const myFirebaseConfig = {
-            apiKey: "",
-            authDomain: "",
-            projectId: "",
-            storageBucket: "",
-            messagingSenderId: "",
-            appId: ""
-        };
-
-        // 安全初始化邏輯
-        let config;
-        if (typeof __firebase_config !== 'undefined') {
-            config = JSON.parse(__firebase_config);
-        } else {
-            config = myFirebaseConfig;
-        }
-
-        const app = initializeApp(config);
-        const db = getFirestore(app);
-        const auth = getAuth(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'ptcg-nexus-daniel';
-
-        // --- 核心狀態管理 ---
-        let history = [];
-        let accounts = ['DANIEL'];
-        let user = null;
-        let activeAccount = 'DANIEL';
-        let activeHourFilter = 'all';
-        let activeMonthFilter = 'all';
-        let currentMapping = new Array(5).fill(-1);
-        let activeSource = -1;
-
-        const ui = {
-            accountTabs: document.getElementById('account-tabs'),
-            matrixBody: document.getElementById('matrix-body'),
-            hourSelector: document.getElementById('hour-selector'),
-            monthSelector: document.getElementById('month-selector'),
-            dbCount: document.getElementById('db-count'),
-            liveClock: document.getElementById('live-clock'),
-            commitBtn: document.getElementById('commit-btn'),
-            tooltip: document.getElementById('matrix-tooltip'),
-            activeAccountLabel: document.getElementById('active-account-label'),
-            activeMonthLabel: document.getElementById('active-month-label'),
-            currentAccountDisplay: document.getElementById('current-account-display'),
-            statusText: document.getElementById('cloud-status'),
-            statusDot: document.getElementById('cloud-status-dot')
-        };
-
-        // --- 核心邏輯 ---
-        window.selectSource = (idx) => {
-            activeSource = idx;
-            document.querySelectorAll('[id^="start-"]').forEach(el => {
-                el.classList.remove('selected', 'ring-8', 'ring-sky-400', 'bg-sky-400/20');
-            });
-            const target = document.getElementById(`start-${idx}`);
-            target.classList.add('selected', 'ring-8', 'ring-sky-400', 'bg-sky-400/30');
-        };
-
-        window.selectTarget = (idx) => {
-            if (activeSource === -1) return;
-            currentMapping.forEach((target, src) => { if (target === idx) currentMapping[src] = -1; });
-            currentMapping[activeSource] = idx;
-            updateMappingUI();
-            
-            const nextEmpty = currentMapping.findIndex(m => m === -1);
-            if (nextEmpty !== -1) window.selectSource(nextEmpty);
-            else {
-                activeSource = -1;
-                document.querySelectorAll('[id^="start-"]').forEach(el => el.classList.remove('selected', 'ring-8', 'ring-sky-400'));
-            }
-            checkCommitState();
-        };
-
-        const updateMappingUI = () => {
-            document.querySelectorAll('[id^="end-"]').forEach(el => {
-                el.className = "mapping-node text-2xl font-black";
-                el.innerHTML = parseInt(el.id.split('-')[1]) + 1;
-            });
-            document.querySelectorAll('[id^="start-"]').forEach((el, i) => {
-                const isSelected = activeSource === i;
-                el.className = `mapping-node text-2xl font-black ${currentMapping[i] !== -1 ? 'color-' + i : ''} ${isSelected ? 'selected ring-8 ring-sky-400 bg-sky-400/20' : ''}`;
-            });
-            currentMapping.forEach((targetIdx, srcIdx) => {
-                if (targetIdx !== -1) {
-                    const targetEl = document.getElementById(`end-${targetIdx}`);
-                    targetEl.classList.add(`color-${srcIdx}`, 'ring-4', 'ring-white/50');
-                    targetEl.innerHTML = `<span class="text-xs opacity-70 mr-1">S</span>${srcIdx + 1}`;
-                }
-            });
-        };
-
-        const checkCommitState = () => {
-            const isFull = currentMapping.every(m => m !== -1);
-            if (isFull) {
-                ui.commitBtn.disabled = false;
-                ui.commitBtn.className = "w-full mt-10 py-10 bg-emerald-400 text-black font-black rounded-[3rem] text-3xl uppercase tracking-widest transition-all cursor-pointer shadow-[0_30px_70px_rgba(52,211,153,0.4)] hover:scale-[1.03] active:scale-95";
-                ui.commitBtn.innerText = "提交並同步數據";
-            } else {
-                ui.commitBtn.disabled = true;
-                ui.commitBtn.className = "w-full mt-10 py-10 bg-slate-800 text-slate-500 font-black rounded-[3rem] text-2xl uppercase tracking-widest transition-all cursor-not-allowed border-2 border-white/5";
-                ui.commitBtn.innerText = "請完成 5 位對置";
-            }
-        };
-
-        window.commitMapping = async () => {
-            if (!user) return;
-            const now = new Date();
-            const logAccount = activeAccount === 'ALL' ? 'DANIEL' : activeAccount;
-            const logData = {
-                mapping: [...currentMapping],
-                t: Date.now(),
-                h: now.getHours(),
-                m: now.getMonth() + 1,
-                y: now.getFullYear(),
-                acc: logAccount,
-                uid: user.uid
-            };
-
-            ui.commitBtn.innerText = "同步中...";
-            try {
-                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'logs'), logData);
-                window.resetMapping();
-            } catch (e) {
-                ui.commitBtn.innerText = "連線異常";
-            }
-        };
-
-        window.resetMapping = () => {
-            currentMapping = new Array(5).fill(-1);
-            activeSource = -1;
-            updateMappingUI();
-            checkCommitState();
-        };
-
-        // --- 同步與篩選 ---
-        const startDataSync = () => {
-            const logsRef = collection(db, 'artifacts', appId, 'public', 'data', 'logs');
-            onSnapshot(logsRef, (snapshot) => {
-                history = snapshot.docs.map(doc => doc.data());
-                renderMonthSelector();
-                renderMatrix();
-                ui.dbCount.innerText = history.length;
-                ui.statusText.innerText = "系統已就緒";
-                ui.statusDot.classList.replace('bg-slate-500', 'bg-emerald-400');
-            });
-
-            const accountsRef = collection(db, 'artifacts', appId, 'public', 'data', 'accounts');
-            onSnapshot(accountsRef, (snapshot) => {
-                const cloudAccounts = snapshot.docs.map(doc => doc.data().name);
-                accounts = [...new Set(['DANIEL', ...cloudAccounts])];
-                renderAccountTabs();
-            });
-        };
-
-        onAuthStateChanged(auth, (u) => {
-            user = u;
-            if (u) startDataSync();
-        });
-
-        window.setAccount = (acc) => {
-            activeAccount = acc;
-            ui.activeAccountLabel.innerText = acc;
-            ui.currentAccountDisplay.innerText = `紀錄者: ${acc === 'ALL' ? 'DANIEL' : acc}`;
-            renderAccountTabs();
-            renderMatrix();
-        };
-
-        window.setHourFilter = (h) => {
-            activeHourFilter = h;
-            renderHourSelector();
-            renderMatrix();
-        };
-
-        window.setMonthFilter = (mKey) => {
-            activeMonthFilter = mKey;
-            ui.activeMonthLabel.innerText = mKey === 'all' ? '全部月份' : mKey;
-            renderMonthSelector();
-            renderMatrix();
-        };
-
-        const renderAccountTabs = () => {
-            ui.accountTabs.innerHTML = '';
-            ['ALL', ...accounts].forEach(acc => {
-                const btn = document.createElement('button');
-                btn.className = `tab-btn ${activeAccount === acc ? 'active' : ''}`;
-                btn.innerText = acc === 'ALL' ? '全域視角' : acc;
-                btn.onclick = () => window.setAccount(acc);
-                ui.accountTabs.appendChild(btn);
-            });
-        };
-
-        const renderHourSelector = () => {
-            ui.hourSelector.innerHTML = '';
-            for (let i = 0; i < 24; i++) {
-                const btn = document.createElement('button');
-                btn.className = `filter-btn ${activeHourFilter === i ? 'active' : ''}`;
-                btn.innerText = i;
-                btn.onclick = () => window.setHourFilter(i);
-                ui.hourSelector.appendChild(btn);
-            }
-        };
-
-        const renderMonthSelector = () => {
-            ui.monthSelector.innerHTML = '';
-            const availableMonths = [...new Set(history.map(l => `${l.y}-${String(l.m).padStart(2,'0')}`))].sort().reverse();
-            availableMonths.forEach(m => {
-                const btn = document.createElement('button');
-                btn.className = `filter-btn px-8 py-4 text-base font-black ${activeMonthFilter === m ? 'active' : ''}`;
-                btn.innerText = m;
-                btn.onclick = () => window.setMonthFilter(m);
-                ui.monthSelector.appendChild(btn);
-            });
-        };
-
-        const renderMatrix = () => {
-            ui.matrixBody.innerHTML = '';
-            let filtered = history;
-            if (activeAccount !== 'ALL') filtered = filtered.filter(l => l.acc === activeAccount);
-            if (activeHourFilter !== 'all') filtered = filtered.filter(l => l.h === activeHourFilter);
-            if (activeMonthFilter !== 'all') {
-                const [y, m] = activeMonthFilter.split('-').map(Number);
-                filtered = filtered.filter(l => l.y === y && l.m === m);
-            }
-
-            let matrix = Array.from({length: 5}, () => new Array(5).fill(0));
-            let startTotals = new Array(5).fill(0);
-
-            filtered.forEach(log => {
-                log.mapping.forEach((target, src) => {
-                    matrix[src][target]++;
-                    startTotals[src]++;
-                });
-            });
-
-            for (let s = 0; s < 5; s++) {
-                const header = document.createElement('div');
-                header.className = "matrix-cell border-none font-black text-sky-400 text-2xl";
-                header.innerText = `S${s+1}`;
-                ui.matrixBody.appendChild(header);
-
-                for (let r = 0; r < 5; r++) {
-                    const count = matrix[s][r];
-                    const percent = startTotals[s] > 0 ? (count / startTotals[s]) : 0;
-                    const cell = document.createElement('div');
-                    let bgClass = "heatmap-low";
-                    if (percent >= 0.4) bgClass = "heatmap-high ring-4 ring-white/50 shadow-[0_0_40px_rgba(255,255,255,0.2)]";
-                    else if (percent >= 0.2) bgClass = "heatmap-mid";
-
-                    cell.className = `matrix-cell ${count > 0 ? bgClass : ''} rounded-[1.5rem] text-2xl font-black transition-all duration-300 hover:scale-110 cursor-help`;
-                    cell.innerHTML = count > 0 ? `${Math.round(percent * 100)}%` : '-';
-                    
-                    cell.onmouseenter = (e) => {
-                        ui.tooltip.style.display = 'block';
-                        ui.tooltip.style.left = (e.clientX + 20) + 'px';
-                        ui.tooltip.style.top = (e.clientY + 20) + 'px';
-                        ui.tooltip.innerHTML = `
-                            <div class="space-y-4 p-2">
-                                <p class="text-sky-400 font-black uppercase tracking-[0.3em] text-sm">數據深度分析</p>
-                                <p class="text-white text-xl font-black">${s+1} 號位 → ${r+1} 號位</p>
-                                <div class="h-px bg-white/20"></div>
-                                <p class="text-slate-300 text-lg font-bold">集體樣本: <span class="text-white text-2xl font-mono">${count}</span> 筆</p>
-                            </div>
-                        `;
-                    };
-                    cell.onmouseleave = () => ui.tooltip.style.display = 'none';
-                    ui.matrixBody.appendChild(cell);
-                }
-            }
-        };
-
-        window.addNewAccount = () => {
-            document.getElementById('account-modal').classList.remove('hidden');
-            document.getElementById('new-account-name').focus();
-        };
-
-        window.closeAccountModal = () => document.getElementById('account-modal').classList.add('hidden');
-
-        window.confirmAddAccount = async () => {
-            const name = document.getElementById('new-account-name').value.trim().toUpperCase();
-            if (name && !accounts.includes(name) && name !== 'ALL') {
-                const accRef = doc(db, 'artifacts', appId, 'public', 'data', 'accounts', name);
-                await setDoc(accRef, { name: name });
-                window.setAccount(name);
-            }
-            document.getElementById('new-account-name').value = '';
-            window.closeAccountModal();
-        };
-
-        const init = async () => {
-            await signInAnonymously(auth);
-            renderHourSelector();
-            lucide.createIcons();
-            setInterval(() => {
-                const now = new Date();
-                ui.liveClock.innerText = now.toTimeString().split(' ')[0];
-            }, 1000);
-        };
-        init();
-    </script>
-
+    
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=JetBrains+Mono:wght@700;900&display=swap');
         
         body {
-            background-color: #020617; /* 更純淨的深黑藍色 */
+            background-color: #020617; 
             color: #f8fafc;
             font-family: 'Inter', sans-serif;
             overflow-x: hidden;
@@ -328,7 +20,7 @@
 
         .matrix-cell { 
             aspect-ratio: 1; 
-            background: rgba(255, 255, 255, 0.03); 
+            background: rgba(255, 255, 255, 0.04); 
             border: 1px solid rgba(255, 255, 255, 0.1); 
             display: flex; 
             align-items: center; 
@@ -345,20 +37,22 @@
             align-items: center; 
             justify-content: center; 
             cursor: pointer; 
-            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
             user-select: none;
+            z-index: 50;
         }
 
         .mapping-node:hover {
-            border-color: rgba(56, 189, 248, 0.8);
-            background: rgba(255, 255, 255, 0.15);
+            border-color: #38bdf8;
+            background: rgba(56, 189, 248, 0.15);
             transform: translateY(-8px) scale(1.08);
         }
 
         .mapping-node.selected { 
             border-color: #38bdf8; 
-            background: rgba(56, 189, 248, 0.3); 
-            box-shadow: 0 0 60px rgba(56, 189, 248, 0.5); 
+            background: rgba(56, 189, 248, 0.35); 
+            box-shadow: 0 0 50px rgba(56, 189, 248, 0.5); 
+            transform: scale(1.15);
         }
 
         .color-0 { color: #f87171; border-color: #f87171; background: rgba(248, 113, 113, 0.2); }
@@ -390,12 +84,12 @@
             text-align: center; 
             border: 2px solid rgba(255,255,255,0.15); 
             background: rgba(255,255,255,0.05); 
-            transition: all 0.2s ease; 
             border-radius: 16px; 
+            transition: all 0.2s ease;
         }
         .filter-btn.active { 
             background: #38bdf8; 
-            color: #010204; 
+            color: #020617; 
             box-shadow: 0 10px 30px rgba(56, 189, 248, 0.5);
         }
 
@@ -408,7 +102,7 @@
             pointer-events: none; 
             background: #1e293b; 
             border: 2px solid #38bdf8; 
-            padding: 30px; 
+            padding: 24px; 
             border-radius: 24px; 
             display: none; 
             z-index: 1000; 
@@ -418,11 +112,11 @@
         }
 
         .no-scrollbar::-webkit-scrollbar { display: none; }
-        @keyframes pulse-intense {
-            0%, 100% { transform: scale(1); opacity: 1; filter: brightness(1); }
-            50% { transform: scale(1.4); opacity: 0.5; filter: brightness(1.5); }
+        @keyframes pulse-status {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(1.4); }
         }
-        .animate-status { animation: pulse-intense 2s infinite ease-in-out; }
+        .animate-status { animation: pulse-status 2s infinite; }
     </style>
 </head>
 <body class="p-8 md:p-16 flex flex-col items-center min-h-screen">
@@ -430,104 +124,104 @@
     <div id="matrix-tooltip"></div>
 
     <div class="w-full max-w-8xl">
-        <!-- 頂部導航 -->
+        
         <nav class="flex items-center gap-4 mb-16 border-b border-white/10 overflow-x-auto no-scrollbar">
             <div id="account-tabs" class="flex"></div>
-            <button onclick="addNewAccount()" class="tab-btn hover:text-white flex items-center gap-4">
+            <button onclick="window.addNewAccount()" class="tab-btn hover:text-white flex items-center gap-4">
                 <i data-lucide="plus-circle" class="w-6 h-6 text-sky-400"></i> 新增團隊
             </button>
         </nav>
 
-        <!-- 標題 -->
         <header class="text-center mb-24">
             <h1 class="text-7xl font-black italic tracking-tighter text-white uppercase flex flex-col md:flex-row items-center justify-center gap-8">
                 <div class="flex items-center gap-6">
                     <i data-lucide="zap" class="text-sky-400 w-20 h-20"></i> 
                     PTCG 得卡挑戰
                 </div>
-                <span class="text-sky-400 font-normal not-italic text-3xl tracking-[0.8em] opacity-40">| NEXUS v2.5</span>
+                <span class="text-sky-400 font-normal not-italic text-3xl tracking-[0.8em] opacity-40">| NEXUS v2.9</span>
             </h1>
+            <p id="mode-badge" class="mt-8 text-sm font-black bg-slate-800 text-slate-400 py-2 px-8 rounded-full inline-block uppercase tracking-[0.3em]">
+                 Daniel 數據分析終端
+            </p>
         </header>
 
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-16">
-            <!-- 左側操作 -->
+            
             <div class="lg:col-span-5 space-y-12">
-                <div class="bg-slate-800/60 p-12 rounded-[5rem] border-2 border-white/5 shadow-[0_50px_100px_rgba(0,0,0,0.5)] backdrop-blur-3xl">
+                <div class="bg-slate-800/60 p-12 rounded-[5rem] border-2 border-white/5 shadow-2xl backdrop-blur-3xl">
                     <div class="flex justify-between items-center mb-16">
                         <div>
-                            <h3 class="text-lg font-black text-sky-400 uppercase tracking-[0.5em]">量子漂移對位系統</h3>
-                            <p id="current-account-display" class="text-sm text-slate-400 mt-2 uppercase tracking-widest font-black">ACTIVE: Daniel</p>
+                            <h3 class="text-xl font-black text-sky-400 uppercase tracking-[0.4em]">量子漂移對位系統</h3>
+                            <p id="current-account-display" class="text-sm text-slate-400 mt-2 uppercase font-black tracking-widest">紀錄帳號: Daniel</p>
                         </div>
-                        <button onclick="resetMapping()" class="text-sm text-slate-400 hover:text-white uppercase px-6 py-3 border-2 border-white/10 rounded-2xl hover:bg-white/5 transition-all font-black">重置</button>
+                        <button onclick="window.resetMapping()" class="text-sm text-slate-400 hover:text-white uppercase px-6 py-3 border-2 border-white/10 rounded-2xl hover:bg-white/5 transition-all font-black">重置對位</button>
                     </div>
 
                     <div class="flex flex-col gap-20 items-center relative py-10">
                         <div class="flex flex-col items-center gap-8 w-full">
-                            <span class="text-sm text-slate-500 uppercase tracking-[0.6em] font-black italic">1. 初始點位 (START)</span>
+                            <span class="text-sm text-slate-500 uppercase tracking-[0.6em] font-black italic">1. 初始分布 (START)</span>
                             <div class="flex justify-between w-full px-4">
-                                <div id="start-0" onclick="selectSource(0)" class="mapping-node">1</div>
-                                <div id="start-1" onclick="selectSource(1)" class="mapping-node">2</div>
-                                <div id="start-2" onclick="selectSource(2)" class="mapping-node">3</div>
-                                <div id="start-3" onclick="selectSource(3)" class="mapping-node">4</div>
-                                <div id="start-4" onclick="selectSource(4)" class="mapping-node">5</div>
+                                <div id="start-0" onclick="window.selectSource(0)" class="mapping-node text-3xl font-black">1</div>
+                                <div id="start-1" onclick="window.selectSource(1)" class="mapping-node text-3xl font-black">2</div>
+                                <div id="start-2" onclick="window.selectSource(2)" class="mapping-node text-3xl font-black">3</div>
+                                <div id="start-3" onclick="window.selectSource(3)" class="mapping-node text-3xl font-black">4</div>
+                                <div id="start-4" onclick="window.selectSource(4)" class="mapping-node text-3xl font-black">5</div>
                             </div>
                         </div>
 
                         <div class="h-1 w-full bg-gradient-to-r from-transparent via-sky-500/20 to-transparent relative flex justify-center items-center">
                             <div class="bg-slate-950 px-10 py-4 border-2 border-sky-500/30 rounded-full shadow-2xl">
-                                <i data-lucide="refresh-ccw" class="w-10 h-10 text-sky-400 animate-[spin_12s_linear_infinite]"></i>
+                                <i data-lucide="refresh-ccw" class="w-10 h-10 text-sky-400 animate-[spin_15s_linear_infinite]"></i>
                             </div>
                         </div>
 
                         <div class="flex flex-col items-center gap-8 w-full">
                             <div class="flex justify-between w-full px-4">
-                                <div id="end-0" onclick="selectTarget(0)" class="mapping-node">1</div>
-                                <div id="end-1" onclick="selectTarget(1)" class="mapping-node">2</div>
-                                <div id="end-2" onclick="selectTarget(2)" class="mapping-node">3</div>
-                                <div id="end-3" onclick="selectTarget(3)" class="mapping-node">4</div>
-                                <div id="end-4" onclick="selectTarget(4)" class="mapping-node">5</div>
+                                <div id="end-0" onclick="window.selectTarget(0)" class="mapping-node text-3xl font-black">1</div>
+                                <div id="end-1" onclick="window.selectTarget(1)" class="mapping-node text-3xl font-black">2</div>
+                                <div id="end-2" onclick="window.selectTarget(2)" class="mapping-node text-3xl font-black">3</div>
+                                <div id="end-3" onclick="window.selectTarget(3)" class="mapping-node text-3xl font-black">4</div>
+                                <div id="end-4" onclick="window.selectTarget(4)" class="mapping-node text-3xl font-black">5</div>
                             </div>
-                            <span class="text-sm text-emerald-400 uppercase tracking-[0.6em] font-black italic">2. 最終結果 (RESULT)</span>
+                            <span class="text-sm text-emerald-400 uppercase tracking-[0.6em] font-black italic">2. 揭曉結果 (RESULT)</span>
                         </div>
                     </div>
 
-                    <button id="commit-btn" onclick="commitMapping()" disabled class="w-full mt-16 py-10 bg-slate-800 text-slate-600 font-black rounded-[3.5rem] text-2xl uppercase tracking-widest transition-all cursor-not-allowed">等待錄入...</button>
+                    <button id="commit-btn" onclick="window.commitMapping()" disabled class="w-full mt-16 py-10 bg-slate-800 text-slate-600 font-black rounded-[3.5rem] text-2xl uppercase tracking-widest transition-all cursor-not-allowed border-2 border-white/5">等待錄入...</button>
                 </div>
 
-                <!-- 儀表 -->
                 <div class="grid grid-cols-2 gap-10">
                     <div class="bg-slate-800/60 p-10 rounded-[3rem] border-2 border-white/5 flex flex-col justify-center backdrop-blur-xl">
                         <div class="flex items-center gap-5 mb-4">
                             <div id="cloud-status-dot" class="w-4 h-4 rounded-full bg-slate-500 animate-status"></div>
-                            <span id="cloud-status" class="text-sm text-slate-400 uppercase tracking-widest font-black">連接中...</span>
+                            <span id="cloud-status" class="text-sm text-slate-400 uppercase tracking-widest font-black">偵測中...</span>
                         </div>
                         <p id="live-clock" class="text-5xl font-black text-sky-400 tracking-tighter font-mono">00:00:00</p>
                     </div>
                     <div class="bg-slate-800/60 p-10 rounded-[3rem] border-2 border-white/5 text-right flex flex-col justify-center backdrop-blur-xl">
-                        <span class="text-sm text-slate-500 uppercase tracking-widest font-black">大數據總樣本</span>
+                        <span class="text-sm text-slate-500 uppercase tracking-widest font-black">全球大數據總樣本</span>
                         <p id="db-count" class="text-6xl font-black text-white mt-3 font-mono tracking-tighter">0</p>
                     </div>
                 </div>
             </div>
 
-            <!-- 右側矩陣 -->
             <div class="lg:col-span-7 space-y-12">
                 <div class="bg-slate-800/60 p-14 rounded-[5rem] border-2 border-white/5 shadow-[0_50px_100px_rgba(0,0,0,0.5)] relative overflow-hidden backdrop-blur-3xl">
                     <div class="flex justify-between items-center mb-16">
-                        <h3 class="text-xl font-black text-white uppercase tracking-[0.5em]">集體智慧機率熱圖</h3>
+                        <h3 class="text-xl font-black text-white uppercase tracking-[0.5em]">集體智慧機率熱圖 (Matrix)</h3>
                         <div class="bg-black/60 px-8 py-4 rounded-[2rem] border-2 border-white/10 flex items-center gap-6">
                             <i data-lucide="database" class="w-8 h-8 text-sky-400"></i>
-                            <span id="active-account-label" class="text-lg text-sky-400 font-black uppercase">Daniel</span>
+                            <span id="active-account-label" class="text-lg text-sky-400 font-black uppercase tracking-widest">Daniel</span>
                         </div>
                     </div>
 
                     <div class="grid grid-cols-6 gap-6 mb-20">
-                        <div class="matrix-cell border-none text-sm text-slate-500 font-black italic">Start \ End</div>
-                        <div class="matrix-cell border-none text-base font-black text-slate-400 uppercase">R1</div>
-                        <div class="matrix-cell border-none text-base font-black text-slate-400 uppercase">R2</div>
-                        <div class="matrix-cell border-none text-base font-black text-slate-400 uppercase">R3</div>
-                        <div class="matrix-cell border-none text-base font-black text-slate-400 uppercase">R4</div>
-                        <div class="matrix-cell border-none text-base font-black text-slate-400 uppercase">R5</div>
+                        <div class="matrix-cell border-none text-sm text-slate-600 font-black italic uppercase">Start \ End</div>
+                        <div class="matrix-cell border-none text-lg font-black text-slate-400">R1</div>
+                        <div class="matrix-cell border-none text-lg font-black text-slate-400">R2</div>
+                        <div class="matrix-cell border-none text-lg font-black text-slate-400">R3</div>
+                        <div class="matrix-cell border-none text-lg font-black text-slate-400">R4</div>
+                        <div class="matrix-cell border-none text-lg font-black text-slate-400">R5</div>
                         <div id="matrix-body" class="contents"></div>
                     </div>
 
@@ -535,15 +229,15 @@
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-16">
                             <div>
                                 <div class="flex justify-between items-center mb-8">
-                                    <span class="text-lg font-black text-slate-500 uppercase tracking-widest">月份樣本</span>
-                                    <button onclick="setMonthFilter('all')" class="text-sm text-sky-400 underline font-black hover:text-white transition-colors">顯示全部</button>
+                                    <span class="text-xl font-black text-slate-500 uppercase tracking-widest">月份樣本過濾</span>
+                                    <button onclick="window.setMonthFilter('all')" class="text-sm text-sky-400 underline font-black hover:text-white transition-colors">顯示全部</button>
                                 </div>
                                 <div id="month-selector" class="flex flex-wrap gap-4"></div>
                             </div>
                             <div>
                                 <div class="flex justify-between items-center mb-8">
-                                    <span class="text-lg font-black text-slate-500 uppercase tracking-widest">時段篩選</span>
-                                    <button onclick="setHourFilter('all')" class="text-sm text-sky-400 underline font-black hover:text-white transition-colors">全時段</button>
+                                    <span class="text-xl font-black text-slate-500 uppercase tracking-widest">時段篩選 (HOUR)</span>
+                                    <button onclick="window.setHourFilter('all')" class="text-sm text-sky-400 underline font-black hover:text-white transition-colors">全天候</button>
                                 </div>
                                 <div class="grid grid-cols-6 gap-4" id="hour-selector"></div>
                             </div>
@@ -554,20 +248,288 @@
         </div>
         
         <footer class="mt-32 text-center opacity-30 pb-32">
-            <p class="text-lg text-slate-500 uppercase tracking-[0.8em] font-black">Intelligence Collective Terminal | Daniel Shih Project</p>
+            <p class="text-lg text-slate-500 uppercase tracking-[0.8em] font-black">Crowdsourced Intelligence Terminal | Daniel Project v2.9</p>
         </footer>
     </div>
 
-    <!-- Modal -->
     <div id="account-modal" class="fixed inset-0 bg-black/98 backdrop-blur-3xl hidden z-[2000] flex items-center justify-center p-12">
-        <div class="bg-slate-900 border-4 border-white/10 p-20 rounded-[5rem] w-full max-w-2xl shadow-[0_0_200px_rgba(0,0,0,1)]">
-            <h4 class="text-3xl font-black text-sky-400 uppercase mb-12 tracking-[0.5em] text-center">同步新的團隊種子</h4>
-            <input type="text" id="new-account-name" placeholder="輸入代號 (如: ALAN)..." class="w-full bg-black/80 border-4 border-white/10 p-10 rounded-[2.5rem] text-3xl focus:border-sky-500 outline-none mb-16 text-white text-center font-black uppercase">
+        <div class="bg-slate-900 border-4 border-white/10 p-20 rounded-[5rem] w-full max-w-2xl shadow-[0_0_200px_rgba(0,0,0,1)] text-center">
+            <h4 class="text-3xl font-black text-sky-400 uppercase mb-12 tracking-[0.5em]">註冊新的團隊種子</h4>
+            <input type="text" id="new-account-name" placeholder="團隊代號 (如: ALAN)..." class="w-full bg-black/80 border-4 border-white/10 p-10 rounded-[2.5rem] text-3xl focus:border-sky-500 outline-none mb-16 text-white text-center font-black uppercase tracking-widest">
             <div class="flex gap-10">
-                <button onclick="closeAccountModal()" class="flex-1 py-8 text-xl text-slate-500 uppercase font-black hover:text-white transition-all">取消</button>
-                <button onclick="confirmAddAccount()" class="flex-1 py-8 bg-emerald-400 text-black rounded-[3rem] text-xl font-black uppercase shadow-2xl active:scale-95 transition-transform">註冊並連結數據庫</button>
+                <button onclick="window.closeAccountModal()" class="flex-1 py-8 text-xl text-slate-500 uppercase font-black hover:text-white transition-all">取消</button>
+                <button onclick="window.confirmAddAccount()" class="flex-1 py-8 bg-emerald-500 text-black rounded-[3rem] text-xl font-black uppercase shadow-2xl active:scale-95 transition-transform">確認連線</button>
             </div>
         </div>
     </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, onSnapshot, doc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+
+        // ==========================================
+        // 重要：Daniel 專屬雲端配置區 (在此更新金鑰)
+        // ==========================================
+        const myFirebaseConfig = {
+              apiKey: "AIzaSyAX496RzlcdFFkUMb0d7XukQR8Sa_M3sHs",
+              authDomain: "ptcg-game.firebaseapp.com",
+              projectId: "ptcg-game",
+              storageBucket: "ptcg-game.firebasestorage.app",
+              messagingSenderId: "43138226380",
+              appId: "1:43138226380:web:8b35894b21c4c074920a69",
+              measurementId: "G-1LEGYM0HKG"
+        };
+        // ==========================================
+
+        let history = [];
+        let accounts = ['DANIEL'];
+        let activeAccount = 'DANIEL';
+        let activeHourFilter = 'all';
+        let activeMonthFilter = 'all';
+        let currentMapping = new Array(5).fill(-1);
+        let activeSource = -1;
+        let db, auth, user, firestoreId;
+
+        const uiElements = {
+            matrixBody: document.getElementById('matrix-body'),
+            dbCount: document.getElementById('db-count'),
+            statusText: document.getElementById('cloud-status'),
+            statusDot: document.getElementById('cloud-status-dot'),
+            modeBadge: document.getElementById('mode-badge'),
+            commitBtn: document.getElementById('commit-btn'),
+            tooltip: document.getElementById('matrix-tooltip')
+        };
+
+        // --- 1. 核心交互功能 (保證可用性) ---
+        window.selectSource = (idx) => {
+            activeSource = idx;
+            document.querySelectorAll('[id^="start-"]').forEach(el => el.classList.remove('selected'));
+            document.getElementById(`start-${idx}`).classList.add('selected');
+        };
+
+        window.selectTarget = (idx) => {
+            if (activeSource === -1) return;
+            currentMapping.forEach((target, src) => { if (target === idx) currentMapping[src] = -1; });
+            currentMapping[activeSource] = idx;
+            renderMappingUI();
+            const nextEmpty = currentMapping.findIndex(m => m === -1);
+            if (nextEmpty !== -1) window.selectSource(nextEmpty);
+            else {
+                activeSource = -1;
+                document.querySelectorAll('[id^="start-"]').forEach(el => el.classList.remove('selected'));
+            }
+            updateCommitBtnState();
+        };
+
+        const renderMappingUI = () => {
+            document.querySelectorAll('[id^="end-"]').forEach(el => {
+                el.className = "mapping-node text-3xl font-black";
+                el.innerText = parseInt(el.id.split('-')[1]) + 1;
+            });
+            document.querySelectorAll('[id^="start-"]').forEach((el, i) => {
+                el.className = `mapping-node text-3xl font-black ${currentMapping[i] !== -1 ? 'color-' + i : ''} ${activeSource === i ? 'selected' : ''}`;
+            });
+            currentMapping.forEach((targetIdx, srcIdx) => {
+                if (targetIdx !== -1) {
+                    const targetEl = document.getElementById(`end-${targetIdx}`);
+                    targetEl.classList.add(`color-${srcIdx}`);
+                    targetEl.innerHTML = `<span class="text-sm mr-2 opacity-50 font-black italic text-white">S</span>${srcIdx + 1}`;
+                }
+            });
+        };
+
+        const updateCommitBtnState = () => {
+            const isFull = currentMapping.every(m => m !== -1);
+            if (isFull) {
+                uiElements.commitBtn.disabled = false;
+                uiElements.commitBtn.className = "w-full mt-16 py-10 bg-emerald-400 text-black font-black rounded-[3.5rem] text-3xl transition-all cursor-pointer shadow-[0_20px_60px_rgba(52,211,153,0.4)] hover:scale-[1.03] active:scale-95";
+                uiElements.commitBtn.innerText = "提交並同步大數據";
+            } else {
+                uiElements.commitBtn.disabled = true;
+                uiElements.commitBtn.className = "w-full mt-16 py-10 bg-slate-800 text-slate-600 font-black rounded-[3.5rem] text-2xl cursor-not-allowed border-2 border-white/5";
+                uiElements.commitBtn.innerText = "請完成五位對位";
+            }
+        };
+
+        window.resetMapping = () => {
+            currentMapping = new Array(5).fill(-1);
+            activeSource = -1;
+            renderMappingUI();
+            updateCommitBtnState();
+        };
+
+        window.commitMapping = async () => {
+            if (!user) { alert("尚未連線，無法上傳"); window.resetMapping(); return; }
+            const now = new Date();
+            const log = {
+                mapping: [...currentMapping],
+                t: Date.now(),
+                h: now.getHours(),
+                m: now.getMonth() + 1,
+                y: now.getFullYear(),
+                acc: activeAccount === 'ALL' ? 'DANIEL' : activeAccount
+            };
+            try {
+                await addDoc(collection(db, 'artifacts', firestoreId, 'public', 'data', 'logs'), log);
+                window.resetMapping();
+            } catch (e) { console.error("Write error:", e); }
+        };
+
+        window.addNewAccount = () => document.getElementById('account-modal').classList.remove('hidden');
+        window.closeAccountModal = () => document.getElementById('account-modal').classList.add('hidden');
+        window.confirmAddAccount = async () => {
+            const name = document.getElementById('new-account-name').value.trim().toUpperCase();
+            if (name && !accounts.includes(name)) {
+                if(user) await setDoc(doc(db, 'artifacts', firestoreId, 'public', 'data', 'accounts', name), { name });
+                window.setAccount(name);
+            }
+            window.closeAccountModal();
+        };
+
+        window.setAccount = (acc) => {
+            activeAccount = acc;
+            document.getElementById('active-account-label').innerText = acc;
+            document.getElementById('current-account-display').innerText = `ACTIVE: ${acc === 'ALL' ? 'DANIEL' : acc}`;
+            renderTabs();
+            renderMatrix();
+        };
+
+        window.setHourFilter = (h) => { activeHourFilter = h; renderHourSelector(); renderMatrix(); };
+        window.setMonthFilter = (m) => { activeMonthFilter = m; renderMonthSelector(); renderMatrix(); };
+
+        const renderTabs = () => {
+            const container = document.getElementById('account-tabs');
+            container.innerHTML = '';
+            ['ALL', ...accounts].forEach(acc => {
+                const btn = document.createElement('button');
+                btn.className = `tab-btn ${activeAccount === acc ? 'active' : ''}`;
+                btn.innerText = acc === 'ALL' ? '全域集合' : acc;
+                btn.onclick = () => window.setAccount(acc);
+                container.appendChild(btn);
+            });
+        };
+
+        const renderHourSelector = () => {
+            const container = document.getElementById('hour-selector');
+            container.innerHTML = '';
+            for (let i = 0; i < 24; i++) {
+                const btn = document.createElement('button');
+                btn.className = `filter-btn ${activeHourFilter === i ? 'active' : ''}`;
+                btn.innerText = i;
+                btn.onclick = () => window.setHourFilter(i);
+                container.appendChild(btn);
+            }
+        };
+
+        const renderMonthSelector = () => {
+            const container = document.getElementById('month-selector');
+            container.innerHTML = '';
+            const months = [...new Set(history.map(l => `${l.y}-${String(l.m).padStart(2,'0')}`))].sort().reverse();
+            months.forEach(m => {
+                const btn = document.createElement('button');
+                btn.className = `filter-btn px-6 py-4 font-black ${activeMonthFilter === m ? 'active' : ''}`;
+                btn.innerText = m;
+                btn.onclick = () => window.setMonthFilter(m);
+                container.appendChild(btn);
+            });
+        };
+
+        const renderMatrix = () => {
+            uiElements.matrixBody.innerHTML = '';
+            let filtered = history;
+            if (activeAccount !== 'ALL') filtered = filtered.filter(l => l.acc === activeAccount);
+            if (activeHourFilter !== 'all') filtered = filtered.filter(l => l.h === activeHourFilter);
+            if (activeMonthFilter !== 'all') {
+                const [y, m] = activeMonthFilter.split('-').map(Number);
+                filtered = filtered.filter(l => l.y === y && l.m === m);
+            }
+            let matrix = Array.from({length: 5}, () => new Array(5).fill(0));
+            let startTotals = new Array(5).fill(0);
+            filtered.forEach(log => {
+                log.mapping.forEach((target, src) => { if(target !== -1) { matrix[src][target]++; startTotals[src]++; } });
+            });
+            for (let s = 0; s < 5; s++) {
+                const head = document.createElement('div');
+                head.className = "matrix-cell border-none font-black text-sky-400 text-3xl uppercase";
+                head.innerText = `S${s+1}`;
+                uiElements.matrixBody.appendChild(head);
+                for (let r = 0; r < 5; r++) {
+                    const count = matrix[s][r];
+                    const percent = startTotals[s] > 0 ? (count / startTotals[s]) : 0;
+                    const cell = document.createElement('div');
+                    let bg = "heatmap-low";
+                    if (percent >= 0.4) bg = "heatmap-high ring-4 ring-white/50 shadow-[0_0_40px_rgba(56,189,248,0.2)]";
+                    else if (percent >= 0.2) bg = "heatmap-mid";
+                    cell.className = `matrix-cell ${count > 0 ? bg : ''} rounded-3xl text-3xl font-black transition-all hover:scale-110 cursor-help`;
+                    cell.innerHTML = count > 0 ? `${Math.round(percent * 100)}%` : '-';
+                    cell.onmouseenter = (e) => {
+                        uiElements.tooltip.style.display = 'block';
+                        uiElements.tooltip.style.left = (e.clientX + 20) + 'px';
+                        uiElements.tooltip.style.top = (e.clientY + 20) + 'px';
+                        uiElements.tooltip.innerHTML = `<div class="space-y-4 p-2 text-center"><p class="text-sky-400 font-black uppercase tracking-[0.4em] text-sm">集體分析</p><p class="text-white text-2xl font-black">${s+1} → ${r+1}</p><div class="h-px bg-white/20"></div><p class="text-slate-300 text-lg font-bold">樣本數: <span class="text-white text-3xl font-mono">${count}</span></p></div>`;
+                    };
+                    cell.onmouseleave = () => uiElements.tooltip.style.display = 'none';
+                    uiElements.matrixBody.appendChild(cell);
+                }
+            }
+        };
+
+        // --- 2. 初始化邏輯 (Rule 3) ---
+        const startApp = async () => {
+            lucide.createIcons();
+            renderTabs();
+            renderHourSelector();
+            renderMatrix();
+            setInterval(() => { document.getElementById('live-clock').innerText = new Date().toTimeString().split(' ')[0]; }, 1000);
+
+            let config = (typeof __firebase_config !== 'undefined') ? JSON.parse(__firebase_config) : myFirebaseConfig;
+            if (!config.apiKey) {
+                uiElements.statusText.innerText = "本地模式";
+                uiElements.modeBadge.innerText = "本地演示版";
+                uiElements.modeBadge.classList.replace('bg-slate-800', 'bg-amber-500/20');
+                return;
+            }
+
+            try {
+                const app = initializeApp(config);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                firestoreId = (typeof __app_id !== 'undefined') ? __app_id : 'ptcg-pocket-daniel';
+
+                // Rule 3: 優先處理身份驗證
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+                onAuthStateChanged(auth, (u) => {
+                    user = u;
+                    if(u) {
+                        uiElements.statusText.innerText = "雲端同步中";
+                        uiElements.statusDot.classList.replace('bg-slate-500', 'bg-emerald-400');
+                        uiElements.statusDot.classList.remove('animate-status');
+                        uiElements.modeBadge.innerText = "數據中心已上線";
+                        uiElements.modeBadge.classList.replace('bg-slate-800', 'bg-emerald-500/20');
+
+                        // 設置數據監聽 (Rule 1)
+                        onSnapshot(collection(db, 'artifacts', firestoreId, 'public', 'data', 'logs'), (snap) => {
+                            history = snap.docs.map(d => d.data());
+                            renderMonthSelector(); renderMatrix();
+                            uiElements.dbCount.innerText = history.length;
+                        }, (err) => console.error("Log error:", err));
+
+                        onSnapshot(collection(db, 'artifacts', firestoreId, 'public', 'data', 'accounts'), (snap) => {
+                            accounts = [...new Set(['DANIEL', ...snap.docs.map(d => d.data().name)])];
+                            renderTabs();
+                        }, (err) => console.error("Account error:", err));
+                    }
+                });
+            } catch (e) { uiElements.statusText.innerText = "連線失敗"; }
+        };
+
+        startApp();
+    </script>
 </body>
 </html>
