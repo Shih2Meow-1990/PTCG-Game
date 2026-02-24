@@ -3,173 +3,192 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PTCG 得卡挑戰 | 戰術數據終端 v3.1</title>
+    <title>PTCG 得卡挑戰 | 戰術數據終端 v3.4</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=JetBrains+Mono:wght@700;900&display=swap');
         
+        :root {
+            --pk-yellow: #facc15;
+            --pk-dark: #020617;
+        }
+
         body {
-            background-color: #020617; 
+            background-color: var(--pk-dark); 
             color: #f8fafc;
             font-family: 'Inter', sans-serif;
-            overflow: hidden; /* 核心調整：鎖定溢出，追求單屏體驗 */
+            overflow: hidden; /* 鎖定單屏，不產生捲軸 */
             -webkit-font-smoothing: antialiased;
         }
 
-        @media (max-height: 800px) {
-            body { overflow-y: auto; } /* 小螢幕自動開啟捲動保護 */
-        }
-
-        /* 縮小矩陣格子以節省空間 */
+        /* 矩陣格子優化：縮小尺寸以符合單屏 */
         .matrix-cell { 
             aspect-ratio: 1.1; 
-            background: rgba(255, 255, 255, 0.04); 
+            background: rgba(255, 255, 255, 0.03); 
             border: 1px solid rgba(255, 255, 255, 0.08); 
             display: flex; 
             align-items: center; 
             justify-content: center; 
-            font-size: 0.875rem;
+            font-size: 0.8rem;
+            border-radius: 4px;
         }
 
-        /* 縮小對位方塊：更符合美術比例 */
+        /* 對位方塊縮小化：符合 Dashboard 比例 */
         .mapping-node { 
-            width: 50px; 
-            height: 70px; 
-            background: rgba(255, 255, 255, 0.06); 
-            border: 2px solid rgba(255, 255, 255, 0.12); 
-            border-radius: 10px; 
+            width: 44px; 
+            height: 60px; 
+            background: rgba(255, 255, 255, 0.05); 
+            border: 2px solid rgba(250, 204, 21, 0.2); 
+            border-radius: 8px; 
             display: flex; 
             align-items: center; 
             justify-content: center; 
             cursor: pointer; 
             transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
             user-select: none;
-            font-size: 1.125rem;
+            font-size: 1rem;
             font-weight: 900;
         }
 
         .mapping-node:hover {
-            border-color: #38bdf8;
-            background: rgba(56, 189, 248, 0.1);
-            transform: translateY(-4px);
+            border-color: var(--pk-yellow);
+            background: rgba(250, 204, 21, 0.1);
+            transform: translateY(-2px);
         }
 
         .mapping-node.selected { 
-            border-color: #38bdf8; 
-            background: rgba(56, 189, 248, 0.3); 
-            box-shadow: 0 0 20px rgba(56, 189, 248, 0.4); 
-            transform: scale(1.1);
+            border-color: var(--pk-yellow); 
+            background: var(--pk-yellow); 
+            color: var(--pk-dark);
+            box-shadow: 0 0 15px rgba(250, 204, 21, 0.5); 
         }
 
-        .color-0 { color: #f87171; border-color: #f87171; background: rgba(248, 113, 113, 0.15); }
-        .color-1 { color: #fbbf24; border-color: #fbbf24; background: rgba(251, 191, 36, 0.15); }
-        .color-2 { color: #34d399; border-color: #34d399; background: rgba(52, 211, 153, 0.15); }
-        .color-3 { color: #38bdf8; border-color: #38bdf8; background: rgba(56, 189, 248, 0.15); }
-        .color-4 { color: #a855f7; border-color: #a855f7; background: rgba(168, 85, 247, 0.15); }
-
+        /* 標籤頁樣式：黃色電力系 */
         .tab-btn { 
-            padding: 10px 20px; 
-            font-size: 13px; 
-            font-weight: 800;
+            padding: 6px 14px; 
+            font-size: 12px; 
+            font-weight: 900;
             text-transform: uppercase; 
-            letter-spacing: 1px; 
-            border-bottom: 3px solid transparent; 
+            border-radius: 6px 6px 0 0;
             transition: all 0.2s ease; 
-            color: #475569; 
+            color: #64748b;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-bottom: none;
+            position: relative;
+            cursor: pointer;
+            white-space: nowrap;
         }
         .tab-btn.active { 
-            color: #38bdf8; 
-            border-color: #38bdf8; 
-            background: rgba(56, 189, 248, 0.05); 
+            color: var(--pk-dark); 
+            background: var(--pk-yellow); 
+            border-color: var(--pk-yellow);
+            box-shadow: 0 -4px 12px rgba(250, 204, 21, 0.2);
         }
-
-        .filter-btn { 
-            padding: 6px; 
-            font-size: 11px; 
-            font-weight: 700;
-            text-align: center; 
-            border: 1px solid rgba(255,255,255,0.08); 
-            background: rgba(255,255,255,0.03); 
-            border-radius: 6px; 
+        
+        .delete-x {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-left: 8px;
+            width: 14px;
+            height: 14px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 50%;
+            font-size: 10px;
+            line-height: 1;
+            transition: background 0.2s;
         }
-        .filter-btn.active { background: #38bdf8; color: #020617; }
+        .delete-x:hover { background: #ef4444; color: white; }
 
-        .heatmap-high { background: #38bdf8; color: #020617; font-weight: 900; }
-        .heatmap-mid { background: rgba(56, 189, 248, 0.4); color: white; }
-        .heatmap-low { background: rgba(255, 255, 255, 0.03); color: #475569; }
+        .color-0 { color: #f87171; border-color: #f87171; }
+        .color-1 { color: #fbbf24; border-color: #fbbf24; }
+        .color-2 { color: #34d399; border-color: #34d399; }
+        .color-3 { color: #38bdf8; border-color: #38bdf8; }
+        .color-4 { color: #a855f7; border-color: #a855f7; }
+
+        /* 熱力圖等級 */
+        .heatmap-high { background: var(--pk-yellow); color: var(--pk-dark); font-weight: 900; }
+        .heatmap-mid { background: rgba(250, 204, 21, 0.4); color: white; }
+        .heatmap-low { background: rgba(255, 255, 255, 0.02); color: #475569; }
 
         #matrix-tooltip { 
             position: fixed; 
             pointer-events: none; 
             background: #1e293b; 
-            border: 1px solid #38bdf8; 
-            padding: 12px; 
-            border-radius: 12px; 
+            border: 2px solid var(--pk-yellow); 
+            padding: 10px; 
+            border-radius: 10px; 
             display: none; 
             z-index: 1000; 
-            box-shadow: 0 15px 30px rgba(0,0,0,0.6); 
-            font-size: 0.75rem;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5); 
+            font-size: 11px;
         }
 
         .no-scrollbar::-webkit-scrollbar { display: none; }
-        @keyframes pulse-soft {
+        @keyframes pulse-yellow {
             0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.5; transform: scale(1.2); }
+            50% { opacity: 0.6; transform: scale(1.2); }
         }
-        .animate-status { animation: pulse-soft 2s infinite; }
+        .animate-status { animation: pulse-yellow 2s infinite; }
+        
+        /* 拖拽效果 */
+        .dragging { opacity: 0.4; transform: scale(0.9); }
     </style>
 </head>
 <body class="p-4 flex flex-col items-center min-h-screen">
 
     <div id="matrix-tooltip"></div>
 
-    <div class="w-full max-w-6xl flex flex-col h-screen max-h-[950px]">
+    <div class="w-full max-w-6xl flex flex-col h-screen max-h-[920px]">
         
-        <!-- HEADER: 壓縮高度 -->
-        <header class="flex justify-between items-center mb-4 px-2">
+        <!-- HEADER -->
+        <header class="flex justify-between items-center mb-2 px-2 shrink-0">
             <div class="flex items-center gap-3">
-                <i data-lucide="zap" class="text-sky-400 w-8 h-8"></i> 
-                <h1 class="text-2xl font-black italic tracking-tighter text-white uppercase">
-                    PTCG 得卡挑戰 <span class="text-sky-400 font-normal not-italic text-xs tracking-widest opacity-40 ml-2">NEXUS v3.1</span>
+                <div class="bg-yellow-400 p-1 rounded-md">
+                    <i data-lucide="zap" class="text-slate-900 w-5 h-5"></i> 
+                </div>
+                <h1 class="text-xl font-black italic tracking-tighter text-yellow-400 uppercase">
+                    PTCG 得卡挑戰 <span class="text-white font-normal not-italic text-[10px] tracking-widest opacity-30 ml-2">v3.4 DASHBOARD</span>
                 </h1>
             </div>
             <div class="flex items-center gap-4">
-                <div class="flex items-center gap-2 bg-slate-800/50 py-1 px-3 rounded-full border border-white/5">
+                <div class="flex items-center gap-2 bg-slate-800/80 py-1 px-3 rounded-full border border-yellow-400/10">
                     <div id="cloud-status-dot" class="w-2 h-2 rounded-full bg-slate-500 animate-status"></div>
-                    <span id="cloud-status" class="text-[10px] text-slate-400 font-black uppercase tracking-widest">離線模式</span>
+                    <span id="cloud-status" class="text-[9px] text-yellow-400 font-black uppercase">偵測中</span>
                 </div>
-                <p id="live-clock" class="text-lg font-black text-sky-400 font-mono">00:00:00</p>
+                <p id="live-clock" class="text-md font-black text-yellow-400 font-mono">00:00:00</p>
             </div>
         </header>
 
-        <!-- TOP NAVIGATION: 團隊切換 -->
-        <nav class="flex items-center gap-2 mb-6 border-b border-white/10 overflow-x-auto no-scrollbar shrink-0">
-            <div id="account-tabs" class="flex"></div>
-            <button onclick="window.addNewAccount()" class="tab-btn hover:text-white flex items-center gap-2">
-                <i data-lucide="user-plus" class="w-4 h-4"></i> 新增
+        <!--團隊切換列：支援新增、拖拽、刪除、更名 -->
+        <nav class="flex items-center gap-1 mb-4 border-b border-yellow-400/20 overflow-x-auto no-scrollbar shrink-0">
+            <div id="account-tabs" class="flex gap-1"></div>
+            <button onclick="window.addNewAccount()" class="px-4 py-2 text-[11px] font-black text-yellow-400 hover:text-white flex items-center gap-1 transition-colors uppercase">
+                <i data-lucide="plus" class="w-3 h-3"></i> 新增
             </button>
         </nav>
 
-        <!-- MAIN DASHBOARD CONTENT -->
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 min-h-0">
+        <!-- DASHBOARD BODY -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 flex-1 min-h-0 mb-4">
             
-            <!-- LEFT: 操作面板 (佔 4/12) -->
+            <!-- LEFT: 控制台 (4/12) -->
             <div class="lg:col-span-4 flex flex-col gap-4 min-h-0">
-                <div class="bg-slate-900/60 p-6 rounded-[2.5rem] border border-white/10 shadow-xl flex-1 flex flex-col">
-                    <div class="flex justify-between items-center mb-6">
+                <div class="bg-slate-900 border border-white/5 p-5 rounded-[2.5rem] shadow-2xl flex-1 flex flex-col">
+                    <div class="flex justify-between items-center mb-4">
                         <div>
-                            <h3 class="text-xs font-black text-sky-400 uppercase tracking-widest">量子位移對位</h3>
-                            <p id="current-account-display" class="text-[10px] text-slate-500 uppercase font-black">ACTIVE: Daniel</p>
+                            <h3 class="text-[10px] font-black text-yellow-400 uppercase tracking-widest">量子位移對位</h3>
+                            <p id="current-account-display" class="text-[9px] text-slate-500 uppercase font-black">USER: Daniel</p>
                         </div>
-                        <button onclick="window.resetMapping()" class="text-[10px] text-slate-500 hover:text-white uppercase px-3 py-1 border border-white/10 rounded-lg">重置</button>
+                        <button onclick="window.resetMapping()" class="text-[9px] text-slate-500 hover:text-yellow-400 uppercase px-2 py-1 border border-white/10 rounded-md transition-colors font-bold">重置</button>
                     </div>
 
-                    <div class="flex flex-col justify-around items-center flex-1 relative py-2">
+                    <div class="flex flex-col justify-around items-center flex-1 py-1">
                         <!-- START -->
-                        <div class="flex flex-col items-center gap-4 w-full">
-                            <span class="text-[10px] text-slate-600 uppercase tracking-widest font-black italic">1. 初始點位</span>
+                        <div class="flex flex-col items-center gap-3 w-full">
+                            <span class="text-[9px] text-slate-600 uppercase tracking-widest font-black italic">1. 初始分布 (START)</span>
                             <div class="flex justify-between w-full px-2">
                                 <div id="start-0" onclick="window.selectSource(0)" class="mapping-node">1</div>
                                 <div id="start-1" onclick="window.selectSource(1)" class="mapping-node">2</div>
@@ -179,14 +198,14 @@
                             </div>
                         </div>
 
-                        <div class="flex items-center gap-4 opacity-20">
-                            <div class="h-px w-16 bg-white/20"></div>
-                            <i data-lucide="refresh-cw" class="w-5 h-5"></i>
-                            <div class="h-px w-16 bg-white/20"></div>
+                        <div class="flex items-center gap-3 opacity-20">
+                            <div class="h-px w-10 bg-white/20"></div>
+                            <i data-lucide="refresh-ccw" class="w-4 h-4 text-white"></i>
+                            <div class="h-px w-10 bg-white/20"></div>
                         </div>
 
                         <!-- RESULT -->
-                        <div class="flex flex-col items-center gap-4 w-full">
+                        <div class="flex flex-col items-center gap-3 w-full">
                             <div class="flex justify-between w-full px-2">
                                 <div id="end-0" onclick="window.selectTarget(0)" class="mapping-node">1</div>
                                 <div id="end-1" onclick="window.selectTarget(1)" class="mapping-node">2</div>
@@ -194,68 +213,66 @@
                                 <div id="end-3" onclick="window.selectTarget(3)" class="mapping-node">4</div>
                                 <div id="end-4" onclick="window.selectTarget(4)" class="mapping-node">5</div>
                             </div>
-                            <span class="text-[10px] text-emerald-500 uppercase tracking-widest font-black italic">2. 最終結果</span>
+                            <span class="text-[9px] text-emerald-500 uppercase tracking-widest font-black italic">2. 最終結果 (RESULT)</span>
                         </div>
                     </div>
 
-                    <button id="commit-btn" onclick="window.commitMapping()" disabled class="w-full mt-6 py-4 bg-slate-800 text-slate-600 font-black rounded-2xl text-base uppercase tracking-widest transition-all cursor-not-allowed">等待錄入</button>
+                    <button id="commit-btn" onclick="window.commitMapping()" disabled class="w-full mt-4 py-4 bg-slate-800 text-slate-600 font-black rounded-xl text-xs uppercase tracking-widest transition-all cursor-not-allowed border border-white/5">等待對位</button>
                 </div>
 
-                <!-- STATS CARD -->
-                <div class="bg-slate-900/60 p-4 rounded-3xl border border-white/5 flex justify-between items-center shadow-lg">
-                    <div class="text-left">
-                        <span class="text-[9px] text-slate-500 uppercase font-black">全球大數據總樣本</span>
-                        <p id="db-count" class="text-3xl font-black text-white font-mono tracking-tighter">0</p>
+                <!-- 底部樣本統計卡 -->
+                <div class="bg-yellow-400 p-4 rounded-2xl flex justify-between items-center shadow-lg">
+                    <div class="text-slate-950">
+                        <span class="text-[8px] font-black uppercase opacity-60">集體累計總樣本</span>
+                        <p id="db-count" class="text-2xl font-black font-mono leading-tight">0</p>
                     </div>
-                    <div class="text-right">
-                        <span id="mode-badge" class="text-[9px] font-black bg-slate-800 text-slate-500 py-1 px-3 rounded-full uppercase">離線分析</span>
-                    </div>
+                    <div id="mode-badge" class="text-[9px] font-black bg-slate-900 text-yellow-400 py-1 px-3 rounded-full uppercase">SYNC_OK</div>
                 </div>
             </div>
 
-            <!-- RIGHT: 數據矩陣 (佔 8/12) -->
+            <!-- RIGHT: 矩陣分析 (8/12) -->
             <div class="lg:col-span-8 flex flex-col min-h-0">
-                <div class="bg-slate-900/60 p-8 rounded-[3rem] border border-white/10 shadow-xl flex flex-col flex-1 min-h-0 relative overflow-hidden">
-                    <div class="flex justify-between items-center mb-6">
-                        <h3 class="text-sm font-black text-white uppercase tracking-widest">集體機率熱圖 (Matrix)</h3>
-                        <div class="flex items-center gap-3">
-                            <div class="bg-black/60 px-4 py-1.5 rounded-xl border border-white/10 flex items-center gap-3">
-                                <i data-lucide="database" class="w-4 h-4 text-sky-400"></i>
-                                <span id="active-account-label" class="text-xs text-sky-400 font-black uppercase">Daniel</span>
+                <div class="bg-slate-900 border border-white/5 p-6 rounded-[2.5rem] shadow-xl flex flex-col flex-1 min-h-0 relative overflow-hidden">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-xs font-black text-white uppercase tracking-widest">集體機率熱圖 (Matrix)</h3>
+                        <div class="flex items-center gap-2">
+                            <div class="bg-yellow-400/10 px-3 py-1 rounded-lg border border-yellow-400/20 flex items-center gap-2">
+                                <i data-lucide="database" class="w-3 h-3 text-yellow-400"></i>
+                                <span id="active-account-label" class="text-[10px] text-yellow-400 font-black uppercase">Daniel</span>
                             </div>
-                            <div class="bg-black/60 px-4 py-1.5 rounded-xl border border-white/10 flex items-center gap-3">
-                                <i data-lucide="calendar" class="w-4 h-4 text-slate-500"></i>
-                                <span id="active-month-label" class="text-xs text-slate-500 font-black uppercase tracking-widest">全部</span>
+                            <div class="bg-slate-800/80 px-3 py-1 rounded-lg flex items-center gap-2">
+                                <i data-lucide="calendar" class="w-3 h-3 text-slate-500"></i>
+                                <span id="active-month-label" class="text-[10px] text-slate-400 font-black uppercase">全部</span>
                             </div>
                         </div>
                     </div>
 
-                    <!-- 矩陣容器: 核心顯示區 -->
-                    <div class="flex-1 min-h-0 flex flex-col justify-center">
+                    <!-- 矩陣顯示區 -->
+                    <div class="flex-1 min-h-0 flex flex-col justify-center py-2">
                         <div class="grid grid-cols-6 gap-2">
-                            <div class="matrix-cell border-none text-[10px] text-slate-600 font-black italic uppercase">S \ R</div>
-                            <div class="matrix-cell border-none text-xs font-black text-slate-500">R1</div>
-                            <div class="matrix-cell border-none text-xs font-black text-slate-500">R2</div>
-                            <div class="matrix-cell border-none text-xs font-black text-slate-500">R3</div>
-                            <div class="matrix-cell border-none text-xs font-black text-slate-500">R4</div>
-                            <div class="matrix-cell border-none text-xs font-black text-slate-500">R5</div>
+                            <div class="matrix-cell border-none text-[8px] text-slate-600 font-black italic uppercase">S \ R</div>
+                            <div class="matrix-cell border-none text-[10px] font-black text-slate-500 uppercase">R1</div>
+                            <div class="matrix-cell border-none text-[10px] font-black text-slate-500 uppercase">R2</div>
+                            <div class="matrix-cell border-none text-[10px] font-black text-slate-500 uppercase">R3</div>
+                            <div class="matrix-cell border-none text-[10px] font-black text-slate-500 uppercase">R4</div>
+                            <div class="matrix-cell border-none text-[10px] font-black text-slate-500 uppercase">R5</div>
                             <div id="matrix-body" class="contents"></div>
                         </div>
                     </div>
 
-                    <!-- 底部過濾器: 緊湊化 -->
-                    <div class="mt-6 pt-6 border-t border-white/5 grid grid-cols-2 gap-8 shrink-0">
+                    <!-- 緊湊型過濾器 -->
+                    <div class="mt-4 pt-4 border-t border-white/5 grid grid-cols-2 gap-6 shrink-0">
                         <div>
-                            <div class="flex justify-between items-center mb-3">
-                                <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest">月份</span>
-                                <button onclick="window.setMonthFilter('all')" class="text-[9px] text-sky-400 underline font-black">ALL</button>
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-[9px] font-black text-slate-600 uppercase">月份過濾</span>
+                                <button onclick="window.setMonthFilter('all')" class="text-[9px] text-yellow-400 underline font-black">ALL</button>
                             </div>
-                            <div id="month-selector" class="flex flex-wrap gap-2 max-h-16 overflow-y-auto no-scrollbar"></div>
+                            <div id="month-selector" class="flex flex-wrap gap-1 max-h-12 overflow-y-auto no-scrollbar"></div>
                         </div>
                         <div>
-                            <div class="flex justify-between items-center mb-3">
-                                <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest">時段 (HOUR)</span>
-                                <button onclick="window.setHourFilter('all')" class="text-[9px] text-sky-400 underline font-black">ALL</button>
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-[9px] font-black text-slate-600 uppercase">時段篩選</span>
+                                <button onclick="window.setHourFilter('all')" class="text-[9px] text-yellow-400 underline font-black">ALL</button>
                             </div>
                             <div class="grid grid-cols-6 gap-1" id="hour-selector"></div>
                         </div>
@@ -264,31 +281,30 @@
             </div>
         </div>
         
-        <footer class="mt-4 text-center opacity-20 shrink-0">
-            <p class="text-[10px] text-slate-500 uppercase tracking-[0.6em] font-black">Crowdsourced Intelligence Collective | Daniel Project v3.1</p>
+        <footer class="text-center opacity-10 py-2 shrink-0">
+            <p class="text-[8px] text-white uppercase tracking-[0.6em] font-black">Electric Nexus Terminal | Daniel Project v3.4</p>
         </footer>
     </div>
 
-    <!-- MODAL -->
+    <!-- MODAL: 新增帳號 -->
     <div id="account-modal" class="fixed inset-0 bg-black/95 backdrop-blur-2xl hidden z-[2000] flex items-center justify-center p-8">
-        <div class="bg-slate-900 border-4 border-white/10 p-12 rounded-[4rem] w-full max-w-sm shadow-2xl text-center">
-            <h4 class="text-xl font-black text-sky-400 uppercase mb-8 tracking-widest">註冊團隊帳號</h4>
-            <input type="text" id="new-account-name" placeholder="代號..." class="w-full bg-black/60 border-2 border-white/10 p-5 rounded-2xl text-xl focus:border-sky-500 outline-none mb-10 text-white text-center font-black uppercase">
+        <div class="bg-slate-900 border-2 border-yellow-400/30 p-10 rounded-[3rem] w-full max-w-sm shadow-2xl text-center">
+            <h4 class="text-lg font-black text-yellow-400 uppercase mb-4 tracking-widest">建立新團隊數據集</h4>
+            <input type="text" id="new-account-name" placeholder="團隊代號 (如: PRO)..." class="w-full bg-black/60 border-2 border-white/10 p-4 rounded-xl text-lg focus:border-yellow-400 outline-none mb-10 text-white text-center font-black uppercase">
             <div class="flex gap-4">
                 <button onclick="window.closeAccountModal()" class="flex-1 py-4 text-xs text-slate-500 font-black uppercase">取消</button>
-                <button onclick="window.confirmAddAccount()" class="flex-1 py-4 bg-emerald-500 text-black rounded-2xl font-black uppercase active:scale-95">加入</button>
+                <button onclick="window.confirmAddAccount()" class="flex-1 py-4 bg-yellow-400 text-slate-900 rounded-xl font-black uppercase active:scale-95">同步加入</button>
             </div>
         </div>
     </div>
 
+    <!-- FIREBASE & 核心邏輯 -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, onSnapshot, doc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, onSnapshot, doc, setDoc, deleteDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
-        // ==========================================
-        // 重要：Daniel 專屬雲端配置
-        // ==========================================
+        // Firebase 配置資訊
         const myFirebaseConfig = {
             apiKey: "AIzaSyAX496RzlcdFFkUMb0d7XukQR8Sa_M3sHs",
             authDomain: "ptcg-game.firebaseapp.com",
@@ -297,28 +313,19 @@
             messagingSenderId: "43138226380",
             appId: "1:43138226380:web:8b35894b21c4c074920a69"
         };
-        // ==========================================
 
+        // 全域狀態
         let history = [];
-        let accounts = ['DANIEL'];
+        let accounts = [];
         let activeAccount = 'DANIEL';
         let activeHourFilter = 'all';
         let activeMonthFilter = 'all';
         let currentMapping = new Array(5).fill(-1);
         let activeSource = -1;
-        let db, auth, user, firestoreId;
+        let db, auth, user;
+        const firestoreId = 'ptcg-pocket-daniel';
 
-        const uiElements = {
-            matrixBody: document.getElementById('matrix-body'),
-            dbCount: document.getElementById('db-count'),
-            statusText: document.getElementById('cloud-status'),
-            statusDot: document.getElementById('cloud-status-dot'),
-            modeBadge: document.getElementById('mode-badge'),
-            commitBtn: document.getElementById('commit-btn'),
-            tooltip: document.getElementById('matrix-tooltip')
-        };
-
-        // --- 核心交互邏輯 ---
+        // --- 核心對位功能 ---
         window.selectSource = (idx) => {
             activeSource = idx;
             document.querySelectorAll('[id^="start-"]').forEach(el => el.classList.remove('selected'));
@@ -332,10 +339,7 @@
             renderMappingUI();
             const next = currentMapping.findIndex(m => m === -1);
             if (next !== -1) window.selectSource(next);
-            else {
-                activeSource = -1;
-                document.querySelectorAll('[id^="start-"]').forEach(el => el.classList.remove('selected'));
-            }
+            else { activeSource = -1; document.querySelectorAll('[id^="start-"]').forEach(el => el.classList.remove('selected')); }
             updateCommitBtnState();
         };
 
@@ -350,22 +354,23 @@
             currentMapping.forEach((targetIdx, srcIdx) => {
                 if (targetIdx !== -1) {
                     const targetEl = document.getElementById(`end-${targetIdx}`);
-                    targetEl.classList.add(`color-${srcIdx}`);
+                    targetEl.classList.add(`color-${srcIdx}`, 'selected');
                     targetEl.innerHTML = `<span class="text-[10px] mr-1 opacity-50 italic">S</span>${srcIdx + 1}`;
                 }
             });
         };
 
         const updateCommitBtnState = () => {
+            const btn = document.getElementById('commit-btn');
             const isFull = currentMapping.every(m => m !== -1);
             if (isFull) {
-                uiElements.commitBtn.disabled = false;
-                uiElements.commitBtn.className = "w-full mt-6 py-4 bg-emerald-400 text-black font-black rounded-2xl text-base transition-all cursor-pointer shadow-xl active:scale-95";
-                uiElements.commitBtn.innerText = "提交並同步數據";
+                btn.disabled = false;
+                btn.className = "w-full mt-4 py-4 bg-yellow-400 text-slate-900 font-black rounded-xl text-xs transition-all cursor-pointer shadow-lg active:scale-95 uppercase tracking-widest";
+                btn.innerText = "⚡ 同步數據 ⚡";
             } else {
-                uiElements.commitBtn.disabled = true;
-                uiElements.commitBtn.className = "w-full mt-6 py-4 bg-slate-800 text-slate-600 font-black rounded-2xl text-base cursor-not-allowed border border-white/5";
-                uiElements.commitBtn.innerText = "請完成五位對位";
+                btn.disabled = true;
+                btn.className = "w-full mt-4 py-4 bg-slate-800 text-slate-600 font-black rounded-xl text-xs cursor-not-allowed border border-white/5";
+                btn.innerText = "等待對位數據";
             }
         };
 
@@ -377,7 +382,7 @@
         };
 
         window.commitMapping = async () => {
-            if (!user) { alert("尚未連線，無法上傳"); window.resetMapping(); return; }
+            if (!user) return;
             const now = new Date();
             const log = {
                 mapping: [...currentMapping],
@@ -390,44 +395,149 @@
             try {
                 await addDoc(collection(db, 'artifacts', firestoreId, 'public', 'data', 'logs'), log);
                 window.resetMapping();
-            } catch (e) { console.error("Error writing document: ", e); }
+            } catch (e) { console.error("Write error:", e); }
         };
 
+        // --- 團隊管理修復邏輯 ---
         window.addNewAccount = () => document.getElementById('account-modal').classList.remove('hidden');
         window.closeAccountModal = () => document.getElementById('account-modal').classList.add('hidden');
+        
         window.confirmAddAccount = async () => {
             const name = document.getElementById('new-account-name').value.trim().toUpperCase();
-            if (name && !accounts.includes(name)) {
-                if(user) await setDoc(doc(db, 'artifacts', firestoreId, 'public', 'data', 'accounts', name), { name });
+            if (name && !accounts.find(a => a.name === name)) {
+                // 自動分配一個順序
+                const maxOrder = accounts.length > 0 ? Math.max(...accounts.map(a => a.order || 0)) : 0;
+                const newRef = doc(collection(db, 'artifacts', firestoreId, 'public', 'data', 'accounts'));
+                await setDoc(newRef, { name, order: maxOrder + 1 });
                 window.setAccount(name);
             }
             window.closeAccountModal();
         };
 
-        window.setAccount = (acc) => {
-            activeAccount = acc;
-            document.getElementById('active-account-label').innerText = acc;
-            document.getElementById('current-account-display').innerText = `ACTIVE: ${acc === 'ALL' ? 'DANIEL' : acc}`;
+        window.deleteAccount = async (e, accId, accName) => {
+            e.stopPropagation();
+            if (accName === 'DANIEL') return;
+            if (!confirm(`確定要刪除團隊 [${accName}] 嗎？`)) return;
+            try {
+                await deleteDoc(doc(db, 'artifacts', firestoreId, 'public', 'data', 'accounts', accId));
+                if (activeAccount === accName) window.setAccount('ALL');
+            } catch (err) { console.error("Delete failed", err); }
+        };
+
+        window.editAccountName = async (accId, oldName) => {
+            if (oldName === 'DANIEL') return;
+            const newName = prompt(`重新命名團隊 [${oldName}] 為:`, oldName);
+            if (newName && newName.trim() && newName.toUpperCase() !== oldName) {
+                const targetName = newName.trim().toUpperCase();
+                await updateDoc(doc(db, 'artifacts', firestoreId, 'public', 'data', 'accounts', accId), { name: targetName });
+                if (activeAccount === oldName) activeAccount = targetName;
+            }
+        };
+
+        window.setAccount = (accName) => {
+            activeAccount = accName;
+            document.getElementById('active-account-label').innerText = accName;
+            document.getElementById('current-account-display').innerText = `USER: ${accName === 'ALL' ? 'DANIEL' : accName}`;
             renderTabs();
             renderMatrix();
         };
 
-        window.setHourFilter = (h) => { activeHourFilter = h; renderHourSelector(); renderMatrix(); };
-        window.setMonthFilter = (m) => { activeMonthFilter = m; renderMonthSelector(); renderMatrix(); };
-
-        // --- 渲染 UI 組件 ---
-
+        // --- UI 渲染功能 ---
         const renderTabs = () => {
             const container = document.getElementById('account-tabs');
             container.innerHTML = '';
-            ['ALL', ...accounts].forEach(acc => {
-                const btn = document.createElement('button');
-                btn.className = `tab-btn ${activeAccount === acc ? 'active' : ''}`;
-                btn.innerText = acc === 'ALL' ? '全域視角' : acc;
-                btn.onclick = () => window.setAccount(acc);
+            
+            const baseList = [{ name: 'ALL', isSpecial: true }, { name: 'DANIEL', isSpecial: true }];
+            const sortedCustom = [...accounts].sort((a,b) => (a.order || 0) - (b.order || 0));
+            const fullList = [...baseList, ...sortedCustom];
+            
+            fullList.forEach(acc => {
+                const btn = document.createElement('div');
+                btn.className = `tab-btn ${activeAccount === acc.name ? 'active' : ''}`;
+                btn.innerText = acc.name === 'ALL' ? '全域集合' : acc.name;
+                btn.draggable = !acc.isSpecial;
+                
+                // 點擊選擇
+                btn.onclick = () => window.setAccount(acc.name);
+
+                if (!acc.isSpecial) {
+                    // 刪除按鈕 (×)
+                    const del = document.createElement('span');
+                    del.className = 'delete-x';
+                    del.innerHTML = '×';
+                    del.onclick = (e) => window.deleteAccount(e, acc.id, acc.name);
+                    btn.appendChild(del);
+                    
+                    // 雙擊編輯
+                    btn.ondblclick = () => window.editAccountName(acc.id, acc.name);
+                    
+                    // 拖拽邏輯
+                    btn.ondragstart = (e) => { e.target.classList.add('dragging'); e.dataTransfer.setData('text/plain', acc.id); };
+                    btn.ondragend = (e) => e.target.classList.remove('dragging');
+                    btn.ondragover = (e) => e.preventDefault();
+                    btn.ondrop = async (e) => {
+                        e.preventDefault();
+                        const draggedId = e.dataTransfer.getData('text/plain');
+                        if (draggedId === acc.id) return;
+                        
+                        const draggedAcc = accounts.find(a => a.id === draggedId);
+                        const targetAcc = accounts.find(a => a.id === acc.id);
+                        if (draggedAcc && targetAcc) {
+                            const dOrder = draggedAcc.order || 0;
+                            const tOrder = targetAcc.order || 0;
+                            await updateDoc(doc(db, 'artifacts', firestoreId, 'public', 'data', 'accounts', draggedId), { order: tOrder });
+                            await updateDoc(doc(db, 'artifacts', firestoreId, 'public', 'data', 'accounts', acc.id), { order: dOrder });
+                        }
+                    };
+                }
                 container.appendChild(btn);
             });
         };
+
+        const renderMatrix = () => {
+            const body = document.getElementById('matrix-body');
+            body.innerHTML = '';
+            let filtered = history;
+            if (activeAccount !== 'ALL') filtered = filtered.filter(l => l.acc === activeAccount);
+            if (activeHourFilter !== 'all') filtered = filtered.filter(l => l.h === activeHourFilter);
+            if (activeMonthFilter !== 'all') {
+                const [y, m] = activeMonthFilter.split('-').map(Number);
+                filtered = filtered.filter(l => l.y === y && l.m === m);
+            }
+            let matrix = Array.from({length: 5}, () => new Array(5).fill(0));
+            let startTotals = new Array(5).fill(0);
+            filtered.forEach(log => {
+                if(log.mapping) log.mapping.forEach((target, src) => { if(target !== -1 && target < 5) { matrix[src][target]++; startTotals[src]++; } });
+            });
+            for (let s = 0; s < 5; s++) {
+                const head = document.createElement('div');
+                head.className = "matrix-cell border-none font-black text-yellow-400/50 text-[10px] uppercase";
+                head.innerText = `S${s+1}`;
+                body.appendChild(head);
+                for (let r = 0; r < 5; r++) {
+                    const count = matrix[s][r];
+                    const percent = startTotals[s] > 0 ? (count / startTotals[s]) : 0;
+                    const cell = document.createElement('div');
+                    let bg = "heatmap-low";
+                    if (percent >= 0.4) bg = "heatmap-high";
+                    else if (percent >= 0.2) bg = "heatmap-mid";
+                    cell.className = `matrix-cell ${count > 0 ? bg : ''} font-black transition-all hover:scale-105`;
+                    cell.innerHTML = count > 0 ? `${Math.round(percent * 100)}%` : '-';
+                    cell.onmouseenter = (e) => {
+                        const tip = document.getElementById('matrix-tooltip');
+                        tip.style.display = 'block';
+                        tip.style.left = (e.clientX + 10) + 'px';
+                        tip.style.top = (e.clientY + 10) + 'px';
+                        tip.innerHTML = `<p class="text-yellow-400 font-black">對位: S${s+1}→R${r+1}</p><p class="text-white text-[10px]">樣本: ${count}</p>`;
+                    };
+                    cell.onmouseleave = () => document.getElementById('matrix-tooltip').style.display = 'none';
+                    body.appendChild(cell);
+                }
+            }
+        };
+
+        window.setHourFilter = (h) => { activeHourFilter = h; renderHourSelector(); renderMatrix(); };
+        window.setMonthFilter = (m) => { activeMonthFilter = m; renderMonthSelector(); renderMatrix(); };
 
         const renderHourSelector = () => {
             const container = document.getElementById('hour-selector');
@@ -447,96 +557,42 @@
             const months = [...new Set(history.map(l => `${l.y}-${String(l.m).padStart(2,'0')}`))].sort().reverse();
             months.forEach(m => {
                 const btn = document.createElement('button');
-                btn.className = `filter-btn px-4 py-2 text-[10px] ${activeMonthFilter === m ? 'active' : ''}`;
+                btn.className = `filter-btn px-2 py-1 ${activeMonthFilter === m ? 'active' : ''}`;
                 btn.innerText = m;
                 btn.onclick = () => window.setMonthFilter(m);
                 container.appendChild(btn);
             });
         };
 
-        const renderMatrix = () => {
-            uiElements.matrixBody.innerHTML = '';
-            let filtered = history;
-            if (activeAccount !== 'ALL') filtered = filtered.filter(l => l.acc === activeAccount);
-            if (activeHourFilter !== 'all') filtered = filtered.filter(l => l.h === activeHourFilter);
-            if (activeMonthFilter !== 'all') {
-                const [y, m] = activeMonthFilter.split('-').map(Number);
-                filtered = filtered.filter(l => l.y === y && l.m === m);
-            }
-            let matrix = Array.from({length: 5}, () => new Array(5).fill(0));
-            let startTotals = new Array(5).fill(0);
-            filtered.forEach(log => {
-                log.mapping.forEach((target, src) => { if(target !== -1) { matrix[src][target]++; startTotals[src]++; } });
-            });
-            for (let s = 0; s < 5; s++) {
-                const head = document.createElement('div');
-                head.className = "matrix-cell border-none font-black text-sky-400 text-sm uppercase";
-                head.innerText = `S${s+1}`;
-                uiElements.matrixBody.appendChild(head);
-                for (let r = 0; r < 5; r++) {
-                    const count = matrix[s][r];
-                    const percent = startTotals[s] > 0 ? (count / startTotals[s]) : 0;
-                    const cell = document.createElement('div');
-                    let bg = "heatmap-low";
-                    if (percent >= 0.4) bg = "heatmap-high ring-2 ring-white/30";
-                    else if (percent >= 0.2) bg = "heatmap-mid";
-                    cell.className = `matrix-cell ${count > 0 ? bg : ''} rounded-lg font-black transition-all hover:scale-105`;
-                    cell.innerHTML = count > 0 ? `${Math.round(percent * 100)}%` : '-';
-                    cell.onmouseenter = (e) => {
-                        uiElements.tooltip.style.display = 'block';
-                        uiElements.tooltip.style.left = (e.clientX + 15) + 'px';
-                        uiElements.tooltip.style.top = (e.clientY + 15) + 'px';
-                        uiElements.tooltip.innerHTML = `<p class="text-sky-400 font-black mb-1">對位分析</p><p class="text-white">S${s+1} → R${r+1}</p><div class="h-px bg-white/10 my-2"></div><p class="text-slate-400">樣本: <span class="text-white">${count}</span></p>`;
-                    };
-                    cell.onmouseleave = () => uiElements.tooltip.style.display = 'none';
-                    uiElements.matrixBody.appendChild(cell);
-                }
-            }
-        };
-
-        // --- 啟動流程 ---
+        // --- 啟動程序 ---
         const startApp = async () => {
             lucide.createIcons();
-            renderTabs();
             renderHourSelector();
-            renderMatrix();
             setInterval(() => { document.getElementById('live-clock').innerText = new Date().toTimeString().split(' ')[0]; }, 1000);
 
             try {
                 const app = initializeApp(myFirebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
-                firestoreId = 'ptcg-pocket-daniel';
-
                 await signInAnonymously(auth);
                 onAuthStateChanged(auth, (u) => {
                     user = u;
                     if(u) {
-                        uiElements.statusText.innerText = "連線成功";
-                        uiElements.statusDot.classList.replace('bg-slate-500', 'bg-emerald-400');
-                        uiElements.statusDot.classList.remove('animate-status');
-                        uiElements.modeBadge.innerText = "雲端中心";
-                        uiElements.modeBadge.classList.replace('bg-slate-800', 'bg-sky-500/20');
-                        uiElements.modeBadge.classList.replace('text-slate-500', 'text-sky-400');
-
+                        document.getElementById('cloud-status').innerText = "已連線";
+                        document.getElementById('cloud-status-dot').classList.replace('bg-slate-500', 'bg-yellow-400');
                         onSnapshot(collection(db, 'artifacts', firestoreId, 'public', 'data', 'logs'), (snap) => {
                             history = snap.docs.map(d => d.data());
                             renderMonthSelector(); renderMatrix();
-                            uiElements.dbCount.innerText = history.length;
-                        }, (err) => {
-                            console.error("Listener error:", err);
-                            uiElements.statusText.innerText = "讀取權限被拒";
+                            document.getElementById('db-count').innerText = history.length;
                         });
-
                         onSnapshot(collection(db, 'artifacts', firestoreId, 'public', 'data', 'accounts'), (snap) => {
-                            accounts = [...new Set(['DANIEL', ...snap.docs.map(d => d.data().name)])];
+                            accounts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
                             renderTabs();
                         });
                     }
                 });
-            } catch (e) { uiElements.statusText.innerText = "配置錯誤"; }
+            } catch (e) { console.error("Firebase Config Error"); }
         };
-
         startApp();
     </script>
 </body>
