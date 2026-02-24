@@ -1,2 +1,2 @@
 # PTCG-Game
-All Game use
+草創用來看看到底機率學 vs 玄學 到底值不值得被參考的第一次試驗
