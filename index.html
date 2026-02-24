@@ -3,10 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PTCG 得卡挑戰 | 數據分析終端 v2.9</title>
+    <title>PTCG 得卡挑戰 | 數據分析終端 v3.0</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     
+    <!-- 核心 CSS 樣式：強化對比與字體大小 -->
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=JetBrains+Mono:wght@700;900&display=swap');
         
@@ -125,6 +126,7 @@
 
     <div class="w-full max-w-8xl">
         
+        <!-- 頂部導航 -->
         <nav class="flex items-center gap-4 mb-16 border-b border-white/10 overflow-x-auto no-scrollbar">
             <div id="account-tabs" class="flex"></div>
             <button onclick="window.addNewAccount()" class="tab-btn hover:text-white flex items-center gap-4">
@@ -132,19 +134,21 @@
             </button>
         </nav>
 
+        <!-- 標題 -->
         <header class="text-center mb-24">
             <h1 class="text-7xl font-black italic tracking-tighter text-white uppercase flex flex-col md:flex-row items-center justify-center gap-8">
                 <div class="flex items-center gap-6">
                     <i data-lucide="zap" class="text-sky-400 w-20 h-20"></i> 
                     PTCG 得卡挑戰
                 </div>
-                <span class="text-sky-400 font-normal not-italic text-3xl tracking-[0.8em] opacity-40">| NEXUS v2.9</span>
+                <span class="text-sky-400 font-normal not-italic text-3xl tracking-[0.8em] opacity-40">| NEXUS v3.0</span>
             </h1>
             <p id="mode-badge" class="mt-8 text-sm font-black bg-slate-800 text-slate-400 py-2 px-8 rounded-full inline-block uppercase tracking-[0.3em]">
                  Daniel 數據分析終端
             </p>
         </header>
 
+        <!-- 主操作區 -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-16">
             
             <div class="lg:col-span-5 space-y-12">
@@ -152,7 +156,7 @@
                     <div class="flex justify-between items-center mb-16">
                         <div>
                             <h3 class="text-xl font-black text-sky-400 uppercase tracking-[0.4em]">量子漂移對位系統</h3>
-                            <p id="current-account-display" class="text-sm text-slate-400 mt-2 uppercase font-black tracking-widest">紀錄帳號: Daniel</p>
+                            <p id="current-account-display" class="text-sm text-slate-400 mt-2 uppercase font-black tracking-widest text-white">紀錄帳號: Daniel</p>
                         </div>
                         <button onclick="window.resetMapping()" class="text-sm text-slate-400 hover:text-white uppercase px-6 py-3 border-2 border-white/10 rounded-2xl hover:bg-white/5 transition-all font-black">重置對位</button>
                     </div>
@@ -199,16 +203,17 @@
                         <p id="live-clock" class="text-5xl font-black text-sky-400 tracking-tighter font-mono">00:00:00</p>
                     </div>
                     <div class="bg-slate-800/60 p-10 rounded-[3rem] border-2 border-white/5 text-right flex flex-col justify-center backdrop-blur-xl">
-                        <span class="text-sm text-slate-500 uppercase tracking-widest font-black">全球大數據總樣本</span>
+                        <span class="text-sm text-slate-500 uppercase tracking-widest font-black">團隊大數據樣本</span>
                         <p id="db-count" class="text-6xl font-black text-white mt-3 font-mono tracking-tighter">0</p>
                     </div>
                 </div>
             </div>
 
+            <!-- 右側數據區 -->
             <div class="lg:col-span-7 space-y-12">
                 <div class="bg-slate-800/60 p-14 rounded-[5rem] border-2 border-white/5 shadow-[0_50px_100px_rgba(0,0,0,0.5)] relative overflow-hidden backdrop-blur-3xl">
                     <div class="flex justify-between items-center mb-16">
-                        <h3 class="text-xl font-black text-white uppercase tracking-[0.5em]">集體智慧機率熱圖 (Matrix)</h3>
+                        <h3 class="text-xl font-black text-white uppercase tracking-[0.5em]">集體智慧機率熱圖</h3>
                         <div class="bg-black/60 px-8 py-4 rounded-[2rem] border-2 border-white/10 flex items-center gap-6">
                             <i data-lucide="database" class="w-8 h-8 text-sky-400"></i>
                             <span id="active-account-label" class="text-lg text-sky-400 font-black uppercase tracking-widest">Daniel</span>
@@ -248,10 +253,11 @@
         </div>
         
         <footer class="mt-32 text-center opacity-30 pb-32">
-            <p class="text-lg text-slate-500 uppercase tracking-[0.8em] font-black">Crowdsourced Intelligence Terminal | Daniel Project v2.9</p>
+            <p class="text-lg text-slate-500 uppercase tracking-[0.8em] font-black">Crowdsourced Intelligence Terminal | Daniel Project v3.0</p>
         </footer>
     </div>
 
+    <!-- 註冊彈窗 -->
     <div id="account-modal" class="fixed inset-0 bg-black/98 backdrop-blur-3xl hidden z-[2000] flex items-center justify-center p-12">
         <div class="bg-slate-900 border-4 border-white/10 p-20 rounded-[5rem] w-full max-w-2xl shadow-[0_0_200px_rgba(0,0,0,1)] text-center">
             <h4 class="text-3xl font-black text-sky-400 uppercase mb-12 tracking-[0.5em]">註冊新的團隊種子</h4>
@@ -269,16 +275,15 @@
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
         // ==========================================
-        // 重要：Daniel 專屬雲端配置區 (在此更新金鑰)
+        // 重要：在下方大括號內貼入您的 Firebase 金鑰
         // ==========================================
         const myFirebaseConfig = {
-              apiKey: "AIzaSyAX496RzlcdFFkUMb0d7XukQR8Sa_M3sHs",
-              authDomain: "ptcg-game.firebaseapp.com",
-              projectId: "ptcg-game",
-              storageBucket: "ptcg-game.firebasestorage.app",
-              messagingSenderId: "43138226380",
-              appId: "1:43138226380:web:8b35894b21c4c074920a69",
-              measurementId: "G-1LEGYM0HKG"
+            apiKey: "AIzaSyAX496RzlcdFFkUMb0d7XukQR8Sa_M3sHs",
+            authDomain: "ptcg-game.firebaseapp.com",
+            projectId: "ptcg-game",
+            storageBucket: "ptcg-game.firebasestorage.app",
+            messagingSenderId: "43138226380",
+            appId: "1:43138226380:web:8b35894b21c4c074920a69"
         };
         // ==========================================
 
@@ -301,7 +306,7 @@
             tooltip: document.getElementById('matrix-tooltip')
         };
 
-        // --- 1. 核心交互功能 (保證可用性) ---
+        // --- 核心交互 (永遠可用) ---
         window.selectSource = (idx) => {
             activeSource = idx;
             document.querySelectorAll('[id^="start-"]').forEach(el => el.classList.remove('selected'));
@@ -340,15 +345,16 @@
         };
 
         const updateCommitBtnState = () => {
+            const btn = document.getElementById('commit-btn');
             const isFull = currentMapping.every(m => m !== -1);
             if (isFull) {
-                uiElements.commitBtn.disabled = false;
-                uiElements.commitBtn.className = "w-full mt-16 py-10 bg-emerald-400 text-black font-black rounded-[3.5rem] text-3xl transition-all cursor-pointer shadow-[0_20px_60px_rgba(52,211,153,0.4)] hover:scale-[1.03] active:scale-95";
-                uiElements.commitBtn.innerText = "提交並同步大數據";
+                btn.disabled = false;
+                btn.className = "w-full mt-16 py-10 bg-emerald-400 text-black font-black rounded-[3.5rem] text-3xl transition-all cursor-pointer shadow-[0_20px_60px_rgba(52,211,153,0.4)] hover:scale-[1.03] active:scale-95";
+                btn.innerText = "提交並同步大數據";
             } else {
-                uiElements.commitBtn.disabled = true;
-                uiElements.commitBtn.className = "w-full mt-16 py-10 bg-slate-800 text-slate-600 font-black rounded-[3.5rem] text-2xl cursor-not-allowed border-2 border-white/5";
-                uiElements.commitBtn.innerText = "請完成五位對位";
+                btn.disabled = true;
+                btn.className = "w-full mt-16 py-10 bg-slate-800 text-slate-600 font-black rounded-[3.5rem] text-2xl cursor-not-allowed border-2 border-white/5";
+                btn.innerText = "請完成五位對位";
             }
         };
 
@@ -360,7 +366,7 @@
         };
 
         window.commitMapping = async () => {
-            if (!user) { alert("尚未連線，無法上傳"); window.resetMapping(); return; }
+            if (!user) { alert("尚未連線至雲端。"); window.resetMapping(); return; }
             const now = new Date();
             const log = {
                 mapping: [...currentMapping],
@@ -371,9 +377,10 @@
                 acc: activeAccount === 'ALL' ? 'DANIEL' : activeAccount
             };
             try {
-                await addDoc(collection(db, 'artifacts', firestoreId, 'public', 'data', 'logs'), log);
+                const logsRef = collection(db, 'artifacts', firestoreId, 'public', 'data', 'logs');
+                await addDoc(logsRef, log);
                 window.resetMapping();
-            } catch (e) { console.error("Write error:", e); }
+            } catch (e) { console.error("寫入錯誤:", e); }
         };
 
         window.addNewAccount = () => document.getElementById('account-modal').classList.remove('hidden');
@@ -381,7 +388,10 @@
         window.confirmAddAccount = async () => {
             const name = document.getElementById('new-account-name').value.trim().toUpperCase();
             if (name && !accounts.includes(name)) {
-                if(user) await setDoc(doc(db, 'artifacts', firestoreId, 'public', 'data', 'accounts', name), { name });
+                if(user) {
+                    const accRef = doc(db, 'artifacts', firestoreId, 'public', 'data', 'accounts', name);
+                    await setDoc(accRef, { name });
+                }
                 window.setAccount(name);
             }
             window.closeAccountModal();
@@ -475,7 +485,7 @@
             }
         };
 
-        // --- 2. 初始化邏輯 (Rule 3) ---
+        // --- 2. 啟動與權限修復邏輯 ---
         const startApp = async () => {
             lucide.createIcons();
             renderTabs();
@@ -483,11 +493,11 @@
             renderMatrix();
             setInterval(() => { document.getElementById('live-clock').innerText = new Date().toTimeString().split(' ')[0]; }, 1000);
 
+            // 優先處理 Config
             let config = (typeof __firebase_config !== 'undefined') ? JSON.parse(__firebase_config) : myFirebaseConfig;
             if (!config.apiKey) {
                 uiElements.statusText.innerText = "本地模式";
-                uiElements.modeBadge.innerText = "本地演示版";
-                uiElements.modeBadge.classList.replace('bg-slate-800', 'bg-amber-500/20');
+                uiElements.modeBadge.innerText = "本地預覽版 - 待配置金鑰";
                 return;
             }
 
@@ -497,36 +507,50 @@
                 auth = getAuth(app);
                 firestoreId = (typeof __app_id !== 'undefined') ? __app_id : 'ptcg-pocket-daniel';
 
-                // Rule 3: 優先處理身份驗證
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                } else {
-                    await signInAnonymously(auth);
-                }
+                // 重要：先執行身份驗證，再掛載監聽器 (Rule 3)
+                const authInit = async () => {
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        return await signInWithCustomToken(auth, __initial_auth_token);
+                    } else {
+                        return await signInAnonymously(auth);
+                    }
+                };
+
+                await authInit();
 
                 onAuthStateChanged(auth, (u) => {
                     user = u;
                     if(u) {
-                        uiElements.statusText.innerText = "雲端同步中";
+                        uiElements.statusText.innerText = "連線成功";
                         uiElements.statusDot.classList.replace('bg-slate-500', 'bg-emerald-400');
                         uiElements.statusDot.classList.remove('animate-status');
-                        uiElements.modeBadge.innerText = "數據中心已上線";
+                        uiElements.modeBadge.innerText = "雲端數據中心已同步";
                         uiElements.modeBadge.classList.replace('bg-slate-800', 'bg-emerald-500/20');
 
-                        // 設置數據監聽 (Rule 1)
-                        onSnapshot(collection(db, 'artifacts', firestoreId, 'public', 'data', 'logs'), (snap) => {
-                            history = snap.docs.map(d => d.data());
-                            renderMonthSelector(); renderMatrix();
-                            uiElements.dbCount.innerText = history.length;
-                        }, (err) => console.error("Log error:", err));
+                        // 設置路徑監聽 (符合 Rule 1)
+                        const logsCollection = collection(db, 'artifacts', firestoreId, 'public', 'data', 'logs');
+                        const accountsCollection = collection(db, 'artifacts', firestoreId, 'public', 'data', 'accounts');
 
-                        onSnapshot(collection(db, 'artifacts', firestoreId, 'public', 'data', 'accounts'), (snap) => {
+                        onSnapshot(logsCollection, (snap) => {
+                            history = snap.docs.map(d => d.data());
+                            renderMonthSelector(); 
+                            renderMatrix();
+                            uiElements.dbCount.innerText = history.length;
+                        }, (err) => {
+                            console.error("日誌讀取權限錯誤:", err);
+                            uiElements.statusText.innerText = "讀取被拒";
+                        });
+
+                        onSnapshot(accountsCollection, (snap) => {
                             accounts = [...new Set(['DANIEL', ...snap.docs.map(d => d.data().name)])];
                             renderTabs();
-                        }, (err) => console.error("Account error:", err));
+                        }, (err) => console.error("帳號讀取權限錯誤:", err));
                     }
                 });
-            } catch (e) { uiElements.statusText.innerText = "連線失敗"; }
+            } catch (e) { 
+                uiElements.statusText.innerText = "連線異常";
+                console.error("Firebase 啟動失敗:", e);
+            }
         };
 
         startApp();
