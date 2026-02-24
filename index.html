@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PTCG 得卡挑戰 | 戰術數據終端 v3.4</title>
+    <title>PTCG 得卡挑戰 | 數據終端 v4.8</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     
@@ -12,299 +12,365 @@
         
         :root {
             --pk-yellow: #facc15;
-            --pk-dark: #020617;
+            --pk-brown: #78350f;
+            --pk-bg: #fffbeb; 
         }
 
-        body {
-            background-color: var(--pk-dark); 
-            color: #f8fafc;
+        body, html {
+            height: 100%;
+            margin: 0;
+            background-color: var(--pk-bg); 
+            color: var(--pk-brown);
             font-family: 'Inter', sans-serif;
-            overflow: hidden; /* 鎖定單屏，不產生捲軸 */
+            overflow: hidden; 
             -webkit-font-smoothing: antialiased;
         }
 
-        /* 矩陣格子優化：縮小尺寸以符合單屏 */
+        /* 矩陣核心：縱向撲滿 */
+        .matrix-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            gap: 0.35rem;
+        }
+
+        .matrix-grid-row {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 0.35rem;
+            flex: 1;
+        }
+
         .matrix-cell { 
-            aspect-ratio: 1.1; 
-            background: rgba(255, 255, 255, 0.03); 
-            border: 1px solid rgba(255, 255, 255, 0.08); 
+            background: white; 
+            border: 2px solid rgba(120, 53, 15, 0.08); 
             display: flex; 
             align-items: center; 
             justify-content: center; 
-            font-size: 0.8rem;
-            border-radius: 4px;
+            border-radius: 12px;
+            color: var(--pk-brown);
+            font-weight: 900;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            font-size: clamp(1.1rem, 2.8vh, 1.5rem); 
+            height: 100%;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.02);
         }
 
-        /* 對位方塊縮小化：符合 Dashboard 比例 */
+        /* 對位方塊 */
         .mapping-node { 
-            width: 44px; 
-            height: 60px; 
-            background: rgba(255, 255, 255, 0.05); 
-            border: 2px solid rgba(250, 204, 21, 0.2); 
+            width: 38px; 
+            height: 46px; 
+            background: white; 
+            border: 2px solid rgba(120, 53, 15, 0.15); 
             border-radius: 8px; 
             display: flex; 
             align-items: center; 
             justify-content: center; 
             cursor: pointer; 
-            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            transition: all 0.15s;
             user-select: none;
-            font-size: 1rem;
-            font-weight: 900;
-        }
-
-        .mapping-node:hover {
-            border-color: var(--pk-yellow);
-            background: rgba(250, 204, 21, 0.1);
-            transform: translateY(-2px);
+            font-size: 0.95rem; 
+            font-weight: 700;
+            color: var(--pk-brown);
         }
 
         .mapping-node.selected { 
-            border-color: var(--pk-yellow); 
+            border-color: var(--pk-brown); 
             background: var(--pk-yellow); 
-            color: var(--pk-dark);
-            box-shadow: 0 0 15px rgba(250, 204, 21, 0.5); 
+            color: var(--pk-brown);
+            box-shadow: 0 4px 10px rgba(250, 204, 21, 0.35); 
+            transform: scale(1.08);
         }
 
-        /* 標籤頁樣式：黃色電力系 */
+        .mapping-node.used {
+            background: #f1f5f9;
+            color: #cbd5e1;
+            border-color: #e2e8f0;
+            opacity: 0.4;
+            pointer-events: none; 
+            box-shadow: none;
+        }
+
+        /* 標籤樣式 */
         .tab-btn { 
-            padding: 6px 14px; 
-            font-size: 12px; 
+            padding: 5px 12px; 
+            font-size: 10px; 
             font-weight: 900;
             text-transform: uppercase; 
             border-radius: 6px 6px 0 0;
-            transition: all 0.2s ease; 
-            color: #64748b;
-            background: rgba(255, 255, 255, 0.02);
-            border: 1px solid rgba(255, 255, 255, 0.05);
+            transition: all 0.2s; 
+            color: var(--pk-brown);
+            background: rgba(120, 53, 15, 0.04);
+            border: 1.5px solid rgba(120, 53, 15, 0.1);
             border-bottom: none;
-            position: relative;
             cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
             white-space: nowrap;
         }
-        .tab-btn.active { 
-            color: var(--pk-dark); 
-            background: var(--pk-yellow); 
-            border-color: var(--pk-yellow);
-            box-shadow: 0 -4px 12px rgba(250, 204, 21, 0.2);
-        }
+        .tab-btn.active { color: white; background: var(--pk-brown); border-color: var(--pk-brown); }
         
         .delete-x {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            margin-left: 8px;
-            width: 14px;
-            height: 14px;
-            background: rgba(0,0,0,0.2);
-            border-radius: 50%;
-            font-size: 10px;
-            line-height: 1;
-            transition: background 0.2s;
+            width: 13px; height: 13px;
+            background: rgba(255,255,255,0.15);
+            border-radius: 50%; font-size: 8px;
+            display: flex; align-items: center; justify-content: center;
         }
-        .delete-x:hover { background: #ef4444; color: white; }
 
-        .color-0 { color: #f87171; border-color: #f87171; }
-        .color-1 { color: #fbbf24; border-color: #fbbf24; }
-        .color-2 { color: #34d399; border-color: #34d399; }
-        .color-3 { color: #38bdf8; border-color: #38bdf8; }
-        .color-4 { color: #a855f7; border-color: #a855f7; }
+        .heatmap-high { background: var(--pk-yellow) !important; border: 3px solid var(--pk-brown) !important; box-shadow: 0 5px 12px rgba(250, 204, 21, 0.2); }
+        .heatmap-mid { background: #fef08a; border: 2px solid var(--pk-brown); }
+        .heatmap-low { background: white; opacity: 0.5; border: 1px solid rgba(120, 53, 15, 0.04); }
 
-        /* 熱力圖等級 */
-        .heatmap-high { background: var(--pk-yellow); color: var(--pk-dark); font-weight: 900; }
-        .heatmap-mid { background: rgba(250, 204, 21, 0.4); color: white; }
-        .heatmap-low { background: rgba(255, 255, 255, 0.02); color: #475569; }
+        .month-scroll {
+            display: flex; gap: 6px;
+            overflow-x: auto; padding-bottom: 2px;
+        }
+        .month-scroll::-webkit-scrollbar { height: 3px; }
+        .month-scroll::-webkit-scrollbar-thumb { background: var(--pk-brown); border-radius: 10px; opacity: 0.1; }
+
+        .filter-btn { 
+            padding: 4px 1px; 
+            font-size: 9px; 
+            font-weight: 800;
+            border: 1.5px solid rgba(120, 53, 15, 0.12); 
+            background: white; 
+            border-radius: 5px; 
+            color: var(--pk-brown);
+            text-align: center;
+        }
+        .filter-btn.active { background: var(--pk-brown); color: var(--pk-yellow); border-color: var(--pk-brown); }
 
         #matrix-tooltip { 
-            position: fixed; 
-            pointer-events: none; 
-            background: #1e293b; 
-            border: 2px solid var(--pk-yellow); 
-            padding: 10px; 
-            border-radius: 10px; 
-            display: none; 
-            z-index: 1000; 
-            box-shadow: 0 10px 25px rgba(0,0,0,0.5); 
+            position: fixed; pointer-events: none; 
+            background: white; border: 2px solid var(--pk-brown); 
+            padding: 8px 12px; border-radius: 10px; 
+            display: none; z-index: 1000; 
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
             font-size: 11px;
         }
 
         .no-scrollbar::-webkit-scrollbar { display: none; }
-        @keyframes pulse-yellow {
+        @keyframes pulse-brown {
             0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.6; transform: scale(1.2); }
+            50% { opacity: 0.5; transform: scale(1.2); }
         }
-        .animate-status { animation: pulse-yellow 2s infinite; }
-        
-        /* 拖拽效果 */
-        .dragging { opacity: 0.4; transform: scale(0.9); }
+        .animate-status { animation: pulse-brown 2s infinite; }
+        .dragging { opacity: 0.3; transform: scale(0.95); }
+
+        /* 歷史清單交互修復 */
+        .history-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 14px;
+            border-bottom: 1px solid rgba(120, 53, 15, 0.08);
+            font-size: 12px;
+            transition: all 0.2s;
+            cursor: default;
+        }
+        .history-item:hover { background: rgba(250, 204, 21, 0.1); }
+        .btn-delete-log {
+            padding: 4px 10px;
+            background: #fee2e2;
+            color: #ef4444;
+            border-radius: 6px;
+            font-weight: 900;
+            font-size: 10px;
+            text-transform: uppercase;
+            border: 1px solid #fca5a5;
+        }
+        .btn-delete-log:hover { background: #ef4444; color: white; }
     </style>
 </head>
-<body class="p-4 flex flex-col items-center min-h-screen">
+<body class="flex justify-center">
 
     <div id="matrix-tooltip"></div>
 
-    <div class="w-full max-w-6xl flex flex-col h-screen max-h-[920px]">
+    <div class="w-full max-w-[1780px] h-screen flex flex-col p-2.5 space-y-2.5">
         
         <!-- HEADER -->
-        <header class="flex justify-between items-center mb-2 px-2 shrink-0">
+        <header class="flex justify-between items-center shrink-0 border-b-2 border-amber-900/10 pb-1.5 px-1">
             <div class="flex items-center gap-3">
-                <div class="bg-yellow-400 p-1 rounded-md">
-                    <i data-lucide="zap" class="text-slate-900 w-5 h-5"></i> 
+                <div class="bg-amber-900 p-1 rounded shadow-sm">
+                    <i data-lucide="zap" class="text-yellow-400 w-4 h-4"></i> 
                 </div>
-                <h1 class="text-xl font-black italic tracking-tighter text-yellow-400 uppercase">
-                    PTCG 得卡挑戰 <span class="text-white font-normal not-italic text-[10px] tracking-widest opacity-30 ml-2">v3.4 DASHBOARD</span>
+                <h1 class="text-lg font-black italic tracking-tighter text-amber-900 uppercase">
+                    PTCG 得卡挑戰 <span class="text-amber-700 font-bold not-italic text-[9px] opacity-40 ml-1">v4.8 ADMIN</span>
                 </h1>
-            </div>
-            <div class="flex items-center gap-4">
-                <div class="flex items-center gap-2 bg-slate-800/80 py-1 px-3 rounded-full border border-yellow-400/10">
-                    <div id="cloud-status-dot" class="w-2 h-2 rounded-full bg-slate-500 animate-status"></div>
-                    <span id="cloud-status" class="text-[9px] text-yellow-400 font-black uppercase">偵測中</span>
+                <nav id="account-tabs" class="flex gap-0.5 overflow-x-auto no-scrollbar ml-2"></nav>
+                <div class="flex items-center gap-2 ml-1">
+                    <button onclick="window.addNewAccount()" class="px-2 py-0.5 text-[9px] font-black text-amber-800 hover:text-amber-600 flex items-center gap-0.5 uppercase transition-all">
+                        <i data-lucide="plus-circle" class="w-3 h-3"></i> 新增
+                    </button>
+                    <button onclick="window.openHistoryModal()" class="px-2 py-0.5 text-[9px] font-black text-amber-800 hover:text-amber-600 flex items-center gap-0.5 uppercase transition-all bg-amber-900/5 rounded">
+                        <i data-lucide="clock" class="w-3 h-3"></i> 歷史
+                    </button>
                 </div>
-                <p id="live-clock" class="text-md font-black text-yellow-400 font-mono">00:00:00</p>
+            </div>
+            
+            <div class="flex items-center gap-4">
+                <div class="flex items-center gap-2 bg-white py-0.5 px-3 rounded-full border border-amber-900/10 shadow-sm">
+                    <div id="cloud-status-dot" class="w-2 h-2 rounded-full bg-slate-300 animate-status"></div>
+                    <span id="cloud-status" class="text-[9px] text-amber-900 font-black uppercase">同步中</span>
+                </div>
+                <p id="live-clock" class="text-lg font-black text-amber-900 font-mono">00:00:00</p>
             </div>
         </header>
 
-        <!--團隊切換列：支援新增、拖拽、刪除、更名 -->
-        <nav class="flex items-center gap-1 mb-4 border-b border-yellow-400/20 overflow-x-auto no-scrollbar shrink-0">
-            <div id="account-tabs" class="flex gap-1"></div>
-            <button onclick="window.addNewAccount()" class="px-4 py-2 text-[11px] font-black text-yellow-400 hover:text-white flex items-center gap-1 transition-colors uppercase">
-                <i data-lucide="plus" class="w-3 h-3"></i> 新增
-            </button>
-        </nav>
-
         <!-- DASHBOARD BODY -->
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 flex-1 min-h-0 mb-4">
+        <div class="grid grid-cols-12 gap-4 flex-1 min-h-0">
             
-            <!-- LEFT: 控制台 (4/12) -->
-            <div class="lg:col-span-4 flex flex-col gap-4 min-h-0">
-                <div class="bg-slate-900 border border-white/5 p-5 rounded-[2.5rem] shadow-2xl flex-1 flex flex-col">
-                    <div class="flex justify-between items-center mb-4">
-                        <div>
-                            <h3 class="text-[10px] font-black text-yellow-400 uppercase tracking-widest">量子位移對位</h3>
-                            <p id="current-account-display" class="text-[9px] text-slate-500 uppercase font-black">USER: Daniel</p>
-                        </div>
-                        <button onclick="window.resetMapping()" class="text-[9px] text-slate-500 hover:text-yellow-400 uppercase px-2 py-1 border border-white/10 rounded-md transition-colors font-bold">重置</button>
+            <!-- LEFT COLUMN -->
+            <div class="col-span-3 flex flex-col min-h-0 space-y-2.5">
+                
+                <!-- 1. 量子對位操作台 -->
+                <div class="bg-white border-2 border-amber-900/10 p-3.5 rounded-[1.8rem] shadow-sm shrink-0 relative overflow-hidden">
+                    <div class="absolute top-0 left-0 w-full h-1 bg-yellow-400 rounded-t-full"></div>
+                    
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="text-[9px] font-black text-amber-900 uppercase tracking-widest">量子對位系統</h3>
+                        <button onclick="window.resetMapping()" class="text-[9px] text-amber-900 font-black hover:bg-amber-50 px-2 py-0.5 border border-amber-900/10 rounded-md transition-all">重置</button>
                     </div>
 
-                    <div class="flex flex-col justify-around items-center flex-1 py-1">
-                        <!-- START -->
-                        <div class="flex flex-col items-center gap-3 w-full">
-                            <span class="text-[9px] text-slate-600 uppercase tracking-widest font-black italic">1. 初始分布 (START)</span>
-                            <div class="flex justify-between w-full px-2">
-                                <div id="start-0" onclick="window.selectSource(0)" class="mapping-node">1</div>
-                                <div id="start-1" onclick="window.selectSource(1)" class="mapping-node">2</div>
-                                <div id="start-2" onclick="window.selectSource(2)" class="mapping-node">3</div>
-                                <div id="start-3" onclick="window.selectSource(3)" class="mapping-node">4</div>
-                                <div id="start-4" onclick="window.selectSource(4)" class="mapping-node">5</div>
+                    <div class="flex flex-col items-center space-y-3">
+                        <div class="w-full flex flex-col items-center gap-1.5">
+                            <span class="text-[8px] text-amber-800/30 font-black uppercase italic">1. 初始分布</span>
+                            <div class="flex flex-col gap-2 w-full px-1">
+                                <div class="flex justify-center gap-2.5">
+                                    <div id="start-0" onclick="window.selectSource(0)" class="mapping-node">1</div>
+                                    <div id="start-1" onclick="window.selectSource(1)" class="mapping-node">2</div>
+                                    <div id="start-2" onclick="window.selectSource(2)" class="mapping-node">3</div>
+                                </div>
+                                <div class="flex justify-center gap-2.5">
+                                    <div id="start-3" onclick="window.selectSource(3)" class="mapping-node">4</div>
+                                    <div id="start-4" onclick="window.selectSource(4)" class="mapping-node">5</div>
+                                </div>
                             </div>
                         </div>
 
-                        <div class="flex items-center gap-3 opacity-20">
-                            <div class="h-px w-10 bg-white/20"></div>
-                            <i data-lucide="refresh-ccw" class="w-4 h-4 text-white"></i>
-                            <div class="h-px w-10 bg-white/20"></div>
-                        </div>
+                        <div class="opacity-10 leading-none"><i data-lucide="chevron-down" class="w-3 h-3 text-amber-900"></i></div>
 
-                        <!-- RESULT -->
-                        <div class="flex flex-col items-center gap-3 w-full">
-                            <div class="flex justify-between w-full px-2">
-                                <div id="end-0" onclick="window.selectTarget(0)" class="mapping-node">1</div>
-                                <div id="end-1" onclick="window.selectTarget(1)" class="mapping-node">2</div>
-                                <div id="end-2" onclick="window.selectTarget(2)" class="mapping-node">3</div>
-                                <div id="end-3" onclick="window.selectTarget(3)" class="mapping-node">4</div>
-                                <div id="end-4" onclick="window.selectTarget(4)" class="mapping-node">5</div>
+                        <div class="w-full flex flex-col items-center gap-1.5">
+                            <div class="flex flex-col gap-2 w-full px-1">
+                                <div class="flex justify-center gap-2.5">
+                                    <div id="end-0" onclick="window.selectTarget(0)" class="mapping-node">1</div>
+                                    <div id="end-1" onclick="window.selectTarget(1)" class="mapping-node">2</div>
+                                    <div id="end-2" onclick="window.selectTarget(2)" class="mapping-node">3</div>
+                                </div>
+                                <div class="flex justify-center gap-2.5">
+                                    <div id="end-3" onclick="window.selectTarget(3)" class="mapping-node">4</div>
+                                    <div id="end-4" onclick="window.selectTarget(4)" class="mapping-node">5</div>
+                                </div>
                             </div>
-                            <span class="text-[9px] text-emerald-500 uppercase tracking-widest font-black italic">2. 最終結果 (RESULT)</span>
+                            <span class="text-[8px] text-emerald-600 font-black uppercase italic mt-1">2. 揭曉結果</span>
                         </div>
                     </div>
 
-                    <button id="commit-btn" onclick="window.commitMapping()" disabled class="w-full mt-4 py-4 bg-slate-800 text-slate-600 font-black rounded-xl text-xs uppercase tracking-widest transition-all cursor-not-allowed border border-white/5">等待對位</button>
+                    <button id="commit-btn" onclick="window.commitMapping()" disabled class="w-full mt-3 py-3 bg-slate-100 text-slate-300 font-black rounded-2xl text-[11px] uppercase border border-slate-200">錄入同步數據</button>
                 </div>
 
-                <!-- 底部樣本統計卡 -->
-                <div class="bg-yellow-400 p-4 rounded-2xl flex justify-between items-center shadow-lg">
-                    <div class="text-slate-950">
-                        <span class="text-[8px] font-black uppercase opacity-60">集體累計總樣本</span>
-                        <p id="db-count" class="text-2xl font-black font-mono leading-tight">0</p>
+                <!-- 2. 數據篩選面板 -->
+                <div class="bg-white border-2 border-amber-900/10 p-4 rounded-[1.8rem] shadow-sm h-fit space-y-4 overflow-hidden">
+                    <div>
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-[10px] font-black text-amber-900 uppercase">月份 (最新在左)</span>
+                            <button onclick="window.setMonthFilter('all')" class="text-[9px] text-amber-900 underline font-black">ALL</button>
+                        </div>
+                        <div id="month-selector" class="month-scroll no-scrollbar"></div>
                     </div>
-                    <div id="mode-badge" class="text-[9px] font-black bg-slate-900 text-yellow-400 py-1 px-3 rounded-full uppercase">SYNC_OK</div>
+                    <div>
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-[10px] font-black text-amber-900 uppercase">時段篩選 (HOUR)</span>
+                            <button onclick="window.setHourFilter('all')" class="text-[9px] text-amber-900 underline font-black">ALL</button>
+                        </div>
+                        <div class="grid grid-cols-8 gap-1 w-full" id="hour-selector"></div>
+                    </div>
+                </div>
+
+                <!-- 3. 數據統計卡 -->
+                <div class="bg-yellow-400 border-2 border-amber-900/10 p-3 rounded-2xl flex justify-between items-center shadow-sm shrink-0">
+                    <div>
+                        <span class="text-[8px] font-black uppercase opacity-60">數據總樣本數</span>
+                        <p id="db-count" class="text-2xl font-black font-mono leading-none mt-1">0</p>
+                    </div>
+                    <div class="bg-amber-900 text-yellow-400 text-[9px] font-black px-3 py-1 rounded-lg">SYNC_OK</div>
                 </div>
             </div>
 
-            <!-- RIGHT: 矩陣分析 (8/12) -->
-            <div class="lg:col-span-8 flex flex-col min-h-0">
-                <div class="bg-slate-900 border border-white/5 p-6 rounded-[2.5rem] shadow-xl flex flex-col flex-1 min-h-0 relative overflow-hidden">
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-xs font-black text-white uppercase tracking-widest">集體機率熱圖 (Matrix)</h3>
+            <!-- RIGHT COLUMN -->
+            <div class="col-span-9 flex flex-col min-h-0">
+                <div class="bg-white border-2 border-amber-900/10 p-5 rounded-[2.8rem] shadow-xl flex-1 flex flex-col min-h-0 relative">
+                    <div class="flex justify-between items-center mb-4 shrink-0">
+                        <h3 class="text-sm font-black text-amber-900 uppercase tracking-widest flex items-center gap-2">
+                            <i data-lucide="layout-grid"></i> 即時數據熱力圖 (LIVE_MATRIX)
+                        </h3>
                         <div class="flex items-center gap-2">
-                            <div class="bg-yellow-400/10 px-3 py-1 rounded-lg border border-yellow-400/20 flex items-center gap-2">
-                                <i data-lucide="database" class="w-3 h-3 text-yellow-400"></i>
-                                <span id="active-account-label" class="text-[10px] text-yellow-400 font-black uppercase">Daniel</span>
+                            <div class="bg-amber-900 text-yellow-400 px-5 py-2 rounded-full font-black text-[10px] uppercase shadow-md">
+                                <span id="active-account-label">DANIEL</span>
                             </div>
-                            <div class="bg-slate-800/80 px-3 py-1 rounded-lg flex items-center gap-2">
-                                <i data-lucide="calendar" class="w-3 h-3 text-slate-500"></i>
-                                <span id="active-month-label" class="text-[10px] text-slate-400 font-black uppercase">全部</span>
+                            <div class="bg-amber-50 px-5 py-2 rounded-full border border-amber-900/5 font-black text-[10px] text-amber-700/60 uppercase">
+                                <span id="active-month-label">全部月份</span>
                             </div>
                         </div>
                     </div>
 
-                    <!-- 矩陣顯示區 -->
-                    <div class="flex-1 min-h-0 flex flex-col justify-center py-2">
-                        <div class="grid grid-cols-6 gap-2">
-                            <div class="matrix-cell border-none text-[8px] text-slate-600 font-black italic uppercase">S \ R</div>
-                            <div class="matrix-cell border-none text-[10px] font-black text-slate-500 uppercase">R1</div>
-                            <div class="matrix-cell border-none text-[10px] font-black text-slate-500 uppercase">R2</div>
-                            <div class="matrix-cell border-none text-[10px] font-black text-slate-500 uppercase">R3</div>
-                            <div class="matrix-cell border-none text-[10px] font-black text-slate-500 uppercase">R4</div>
-                            <div class="matrix-cell border-none text-[10px] font-black text-slate-500 uppercase">R5</div>
+                    <div class="flex-1 min-h-0">
+                        <div class="matrix-container">
+                            <div class="grid grid-cols-6 gap-2 shrink-0 mb-1">
+                                <div class="flex items-center justify-center text-[10px] text-amber-800/30 font-black italic">Start \ End</div>
+                                <div class="flex items-center justify-center text-xs font-black text-amber-900/40">R1</div>
+                                <div class="flex items-center justify-center text-xs font-black text-amber-900/40">R2</div>
+                                <div class="flex items-center justify-center text-xs font-black text-amber-900/40">R3</div>
+                                <div class="flex items-center justify-center text-xs font-black text-amber-900/40">R4</div>
+                                <div class="flex items-center justify-center text-xs font-black text-amber-900/40">R5</div>
+                            </div>
                             <div id="matrix-body" class="contents"></div>
                         </div>
                     </div>
-
-                    <!-- 緊湊型過濾器 -->
-                    <div class="mt-4 pt-4 border-t border-white/5 grid grid-cols-2 gap-6 shrink-0">
-                        <div>
-                            <div class="flex justify-between items-center mb-2">
-                                <span class="text-[9px] font-black text-slate-600 uppercase">月份過濾</span>
-                                <button onclick="window.setMonthFilter('all')" class="text-[9px] text-yellow-400 underline font-black">ALL</button>
-                            </div>
-                            <div id="month-selector" class="flex flex-wrap gap-1 max-h-12 overflow-y-auto no-scrollbar"></div>
-                        </div>
-                        <div>
-                            <div class="flex justify-between items-center mb-2">
-                                <span class="text-[9px] font-black text-slate-600 uppercase">時段篩選</span>
-                                <button onclick="window.setHourFilter('all')" class="text-[9px] text-yellow-400 underline font-black">ALL</button>
-                            </div>
-                            <div class="grid grid-cols-6 gap-1" id="hour-selector"></div>
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>
-        
-        <footer class="text-center opacity-10 py-2 shrink-0">
-            <p class="text-[8px] text-white uppercase tracking-[0.6em] font-black">Electric Nexus Terminal | Daniel Project v3.4</p>
-        </footer>
     </div>
 
-    <!-- MODAL: 新增帳號 -->
-    <div id="account-modal" class="fixed inset-0 bg-black/95 backdrop-blur-2xl hidden z-[2000] flex items-center justify-center p-8">
-        <div class="bg-slate-900 border-2 border-yellow-400/30 p-10 rounded-[3rem] w-full max-w-sm shadow-2xl text-center">
-            <h4 class="text-lg font-black text-yellow-400 uppercase mb-4 tracking-widest">建立新團隊數據集</h4>
-            <input type="text" id="new-account-name" placeholder="團隊代號 (如: PRO)..." class="w-full bg-black/60 border-2 border-white/10 p-4 rounded-xl text-lg focus:border-yellow-400 outline-none mb-10 text-white text-center font-black uppercase">
+    <!-- MODAL: 新增團隊 -->
+    <div id="account-modal" class="fixed inset-0 bg-amber-900/40 backdrop-blur-xl hidden z-[3000] flex items-center justify-center p-8">
+        <div class="bg-white border-4 border-amber-900 p-10 rounded-[3rem] w-full max-w-sm shadow-2xl text-center">
+            <h4 class="text-xl font-black text-amber-900 uppercase mb-8 tracking-widest">新增團隊軌道</h4>
+            <input type="text" id="new-account-name" placeholder="團隊代號..." class="w-full bg-amber-50 border-2 border-amber-900/10 p-5 rounded-2xl text-xl focus:border-yellow-400 outline-none mb-10 text-amber-900 text-center font-black uppercase">
             <div class="flex gap-4">
-                <button onclick="window.closeAccountModal()" class="flex-1 py-4 text-xs text-slate-500 font-black uppercase">取消</button>
-                <button onclick="window.confirmAddAccount()" class="flex-1 py-4 bg-yellow-400 text-slate-900 rounded-xl font-black uppercase active:scale-95">同步加入</button>
+                <button onclick="window.closeAccountModal()" class="flex-1 py-4 text-sm font-black uppercase hover:text-red-500">取消</button>
+                <button onclick="window.confirmAddAccount()" class="flex-1 py-4 bg-yellow-400 text-amber-900 border-2 border-amber-900 rounded-2xl font-black uppercase active:scale-95 shadow-md">同步</button>
             </div>
         </div>
     </div>
 
-    <!-- FIREBASE & 核心邏輯 -->
+    <!-- MODAL: 歷史紀錄與管理 (增加層級) -->
+    <div id="history-modal" class="fixed inset-0 bg-amber-900/60 backdrop-blur-2xl hidden z-[3000] flex items-center justify-center p-8">
+        <div class="bg-white border-4 border-amber-900 p-8 rounded-[4rem] w-full max-w-lg shadow-2xl flex flex-col h-[75vh]">
+            <div class="flex justify-between items-center mb-6 shrink-0">
+                <h4 class="text-2xl font-black text-amber-900 uppercase tracking-widest">數據日誌</h4>
+                <button onclick="window.closeHistoryModal()" class="w-10 h-10 flex items-center justify-center bg-amber-100 rounded-full text-amber-900 font-black">✕</button>
+            </div>
+            
+            <!-- List Container -->
+            <div id="history-list" class="flex-1 overflow-y-auto pr-2 no-scrollbar border-y-2 border-amber-900/5 bg-amber-50/20 rounded-xl">
+                <!-- 內容由 JS 填充 -->
+            </div>
+
+            <!-- Global Actions -->
+            <div class="mt-6 pt-4 shrink-0 text-center">
+                <p class="text-[10px] text-red-500 font-black mb-4 uppercase tracking-[0.2em]">⚠️ 緊急指令：清空全域數據 ⚠️</p>
+                <button onclick="window.handleGlobalReset()" class="w-full py-5 bg-red-500 text-white border-b-4 border-red-800 rounded-2xl font-black uppercase text-sm hover:translate-y-0.5 active:border-b-0 transition-all shadow-lg">徹底歸零資料庫 (輸入 RESET ALL)</button>
+            </div>
+        </div>
+    </div>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, onSnapshot, doc, setDoc, deleteDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, onSnapshot, doc, setDoc, deleteDoc, updateDoc, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
-        // Firebase 配置資訊
         const myFirebaseConfig = {
             apiKey: "AIzaSyAX496RzlcdFFkUMb0d7XukQR8Sa_M3sHs",
             authDomain: "ptcg-game.firebaseapp.com",
@@ -314,8 +380,8 @@
             appId: "1:43138226380:web:8b35894b21c4c074920a69"
         };
 
-        // 全域狀態
         let history = [];
+        let rawHistoryData = []; 
         let accounts = [];
         let activeAccount = 'DANIEL';
         let activeHourFilter = 'all';
@@ -325,37 +391,35 @@
         let db, auth, user;
         const firestoreId = 'ptcg-pocket-daniel';
 
-        // --- 核心對位功能 ---
+        // --- 核心交互 ---
         window.selectSource = (idx) => {
             activeSource = idx;
-            document.querySelectorAll('[id^="start-"]').forEach(el => el.classList.remove('selected'));
-            document.getElementById(`start-${idx}`).classList.add('selected');
+            renderMappingUI(); 
         };
 
         window.selectTarget = (idx) => {
             if (activeSource === -1) return;
             currentMapping.forEach((target, src) => { if (target === idx) currentMapping[src] = -1; });
             currentMapping[activeSource] = idx;
-            renderMappingUI();
             const next = currentMapping.findIndex(m => m === -1);
-            if (next !== -1) window.selectSource(next);
-            else { activeSource = -1; document.querySelectorAll('[id^="start-"]').forEach(el => el.classList.remove('selected')); }
+            activeSource = (next !== -1) ? next : -1;
+            renderMappingUI();
             updateCommitBtnState();
         };
 
         const renderMappingUI = () => {
-            document.querySelectorAll('[id^="end-"]').forEach(el => {
-                el.className = "mapping-node text-xl font-black";
-                el.innerText = parseInt(el.id.split('-')[1]) + 1;
-            });
             document.querySelectorAll('[id^="start-"]').forEach((el, i) => {
-                el.className = `mapping-node text-xl font-black ${currentMapping[i] !== -1 ? 'color-' + i : ''} ${activeSource === i ? 'selected' : ''}`;
+                const isSelected = activeSource === i;
+                const isUsed = currentMapping[i] !== -1;
+                el.className = `mapping-node ${isUsed ? 'used' : (isSelected ? 'selected' : '')}`;
             });
-            currentMapping.forEach((targetIdx, srcIdx) => {
-                if (targetIdx !== -1) {
-                    const targetEl = document.getElementById(`end-${targetIdx}`);
-                    targetEl.classList.add(`color-${srcIdx}`, 'selected');
-                    targetEl.innerHTML = `<span class="text-[10px] mr-1 opacity-50 italic">S</span>${srcIdx + 1}`;
+            document.querySelectorAll('[id^="end-"]').forEach((el, i) => {
+                const sourceIdx = currentMapping.indexOf(i);
+                el.className = "mapping-node";
+                el.innerText = i + 1;
+                if (sourceIdx !== -1) {
+                    el.classList.add(`color-${sourceIdx}`, "selected");
+                    el.innerHTML = `<span class="text-[10px] mr-1 opacity-40 italic">S</span>${sourceIdx + 1}`;
                 }
             });
         };
@@ -365,12 +429,12 @@
             const isFull = currentMapping.every(m => m !== -1);
             if (isFull) {
                 btn.disabled = false;
-                btn.className = "w-full mt-4 py-4 bg-yellow-400 text-slate-900 font-black rounded-xl text-xs transition-all cursor-pointer shadow-lg active:scale-95 uppercase tracking-widest";
-                btn.innerText = "⚡ 同步數據 ⚡";
+                btn.className = "w-full mt-3 py-3 bg-yellow-400 text-amber-900 border-2 border-amber-900 font-black rounded-3xl text-sm transition-all cursor-pointer shadow-lg active:scale-95 uppercase tracking-widest";
+                btn.innerText = "⚡ 數據同步 ⚡";
             } else {
                 btn.disabled = true;
-                btn.className = "w-full mt-4 py-4 bg-slate-800 text-slate-600 font-black rounded-xl text-xs cursor-not-allowed border border-white/5";
-                btn.innerText = "等待對位數據";
+                btn.className = "w-full mt-3 py-3 bg-slate-100 text-slate-300 font-black rounded-3xl text-sm cursor-not-allowed border border-slate-200";
+                btn.innerText = "等待對位";
             }
         };
 
@@ -383,113 +447,146 @@
 
         window.commitMapping = async () => {
             if (!user) return;
-            const now = new Date();
             const log = {
                 mapping: [...currentMapping],
                 t: Date.now(),
-                h: now.getHours(),
-                m: now.getMonth() + 1,
-                y: now.getFullYear(),
+                h: new Date().getHours(),
+                m: new Date().getMonth() + 1,
+                y: new Date().getFullYear(),
                 acc: activeAccount === 'ALL' ? 'DANIEL' : activeAccount
             };
             try {
                 await addDoc(collection(db, 'artifacts', firestoreId, 'public', 'data', 'logs'), log);
                 window.resetMapping();
-            } catch (e) { console.error("Write error:", e); }
+            } catch (e) { console.error(e); }
         };
 
-        // --- 團隊管理修復邏輯 ---
+        // --- 歷史管理修復 ---
+        window.openHistoryModal = () => {
+            document.getElementById('history-modal').classList.remove('hidden');
+            renderHistoryList();
+        };
+        window.closeHistoryModal = () => document.getElementById('history-modal').classList.add('hidden');
+
+        const renderHistoryList = () => {
+            const container = document.getElementById('history-list');
+            container.innerHTML = '';
+            
+            const sorted = [...rawHistoryData].sort((a,b) => b.t - a.t).slice(0, 30);
+            
+            if (sorted.length === 0) {
+                container.innerHTML = '<div class="py-20 text-center opacity-30 italic">暫無數據紀錄</div>';
+                return;
+            }
+
+            sorted.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'history-item';
+                const time = new Date(item.t).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+                const path = item.mapping.map(m => m + 1).join('→');
+                
+                div.innerHTML = `
+                    <div class="flex flex-col">
+                        <div class="flex items-center gap-2">
+                            <span class="bg-amber-900 text-white px-2 py-0.5 rounded text-[9px] font-black uppercase">${item.acc || 'DANIEL'}</span>
+                            <span class="opacity-40 font-mono text-[10px]">${time}</span>
+                        </div>
+                        <div class="mt-1 font-black text-amber-900 text-sm tracking-widest">${path}</div>
+                    </div>
+                    <button onclick="window.deleteSingleLog('${item.id}')" class="btn-delete-log">刪除紀錄</button>
+                `;
+                container.appendChild(div);
+            });
+        };
+
+        window.deleteSingleLog = async (id) => {
+            if (confirm("確定刪除這筆錄入錯誤的數據嗎？")) {
+                try {
+                    await deleteDoc(doc(db, 'artifacts', firestoreId, 'public', 'data', 'logs', id));
+                    // 監聽器會自動觸發 renderHistoryList()
+                } catch (e) { alert("權限不足或網路異常。"); }
+            }
+        };
+
+        window.handleGlobalReset = async () => {
+            const code = prompt("🚨 注意：此操作將清空所有數據！\n請輸入 RESET ALL 確認：");
+            if (code === "RESET ALL") {
+                try {
+                    const snap = await getDocs(collection(db, 'artifacts', firestoreId, 'public', 'data', 'logs'));
+                    const batch = writeBatch(db);
+                    snap.docs.forEach(d => batch.delete(d.ref));
+                    await batch.commit();
+                    alert("數據庫已重置。");
+                    window.closeHistoryModal();
+                } catch (e) { alert("重置失敗。"); }
+            }
+        };
+
+        // --- 團隊管理 ---
         window.addNewAccount = () => document.getElementById('account-modal').classList.remove('hidden');
         window.closeAccountModal = () => document.getElementById('account-modal').classList.add('hidden');
-        
         window.confirmAddAccount = async () => {
             const name = document.getElementById('new-account-name').value.trim().toUpperCase();
             if (name && !accounts.find(a => a.name === name)) {
-                // 自動分配一個順序
-                const maxOrder = accounts.length > 0 ? Math.max(...accounts.map(a => a.order || 0)) : 0;
-                const newRef = doc(collection(db, 'artifacts', firestoreId, 'public', 'data', 'accounts'));
-                await setDoc(newRef, { name, order: maxOrder + 1 });
+                await setDoc(doc(collection(db, 'artifacts', firestoreId, 'public', 'data', 'accounts')), { name, order: accounts.length + 1 });
                 window.setAccount(name);
             }
             window.closeAccountModal();
         };
 
-        window.deleteAccount = async (e, accId, accName) => {
+        window.deleteAccount = async (e, id, name) => {
             e.stopPropagation();
-            if (accName === 'DANIEL') return;
-            if (!confirm(`確定要刪除團隊 [${accName}] 嗎？`)) return;
-            try {
-                await deleteDoc(doc(db, 'artifacts', firestoreId, 'public', 'data', 'accounts', accId));
-                if (activeAccount === accName) window.setAccount('ALL');
-            } catch (err) { console.error("Delete failed", err); }
-        };
-
-        window.editAccountName = async (accId, oldName) => {
-            if (oldName === 'DANIEL') return;
-            const newName = prompt(`重新命名團隊 [${oldName}] 為:`, oldName);
-            if (newName && newName.trim() && newName.toUpperCase() !== oldName) {
-                const targetName = newName.trim().toUpperCase();
-                await updateDoc(doc(db, 'artifacts', firestoreId, 'public', 'data', 'accounts', accId), { name: targetName });
-                if (activeAccount === oldName) activeAccount = targetName;
+            if (name === 'DANIEL') return;
+            if (confirm(`刪除團隊 [${name}]？`)) {
+                await deleteDoc(doc(db, 'artifacts', firestoreId, 'public', 'data', 'accounts', id));
+                if (activeAccount === name) window.setAccount('ALL');
             }
         };
 
-        window.setAccount = (accName) => {
-            activeAccount = accName;
-            document.getElementById('active-account-label').innerText = accName;
-            document.getElementById('current-account-display').innerText = `USER: ${accName === 'ALL' ? 'DANIEL' : accName}`;
-            renderTabs();
-            renderMatrix();
+        window.editAccountName = async (id, old) => {
+            if (old === 'DANIEL') return;
+            const next = prompt(`改名 [${old}] 為:`, old);
+            if (next && next.trim().toUpperCase() !== old) {
+                await updateDoc(doc(db, 'artifacts', firestoreId, 'public', 'data', 'accounts', id), { name: next.trim().toUpperCase() });
+            }
         };
 
-        // --- UI 渲染功能 ---
+        window.setAccount = (name) => {
+            activeAccount = name;
+            document.getElementById('active-account-label').innerText = name;
+            renderTabs(); renderMatrix();
+        };
+
         const renderTabs = () => {
             const container = document.getElementById('account-tabs');
             container.innerHTML = '';
-            
-            const baseList = [{ name: 'ALL', isSpecial: true }, { name: 'DANIEL', isSpecial: true }];
-            const sortedCustom = [...accounts].sort((a,b) => (a.order || 0) - (b.order || 0));
-            const fullList = [...baseList, ...sortedCustom];
-            
-            fullList.forEach(acc => {
+            const base = [{ name: 'ALL', sp: true }, { name: 'DANIEL', sp: true }];
+            const sorted = accounts.sort((a,b) => (a.order || 0) - (b.order || 0));
+            [...base, ...sorted].forEach(acc => {
                 const btn = document.createElement('div');
                 btn.className = `tab-btn ${activeAccount === acc.name ? 'active' : ''}`;
-                btn.innerText = acc.name === 'ALL' ? '全域集合' : acc.name;
-                btn.draggable = !acc.isSpecial;
-                
-                // 點擊選擇
-                btn.onclick = () => window.setAccount(acc.name);
-
-                if (!acc.isSpecial) {
-                    // 刪除按鈕 (×)
+                btn.innerText = acc.name === 'ALL' ? '全域' : acc.name;
+                btn.draggable = !acc.sp;
+                if (!acc.sp) {
                     const del = document.createElement('span');
-                    del.className = 'delete-x';
-                    del.innerHTML = '×';
+                    del.className = 'delete-x'; del.innerHTML = '×';
                     del.onclick = (e) => window.deleteAccount(e, acc.id, acc.name);
                     btn.appendChild(del);
-                    
-                    // 雙擊編輯
                     btn.ondblclick = () => window.editAccountName(acc.id, acc.name);
-                    
-                    // 拖拽邏輯
-                    btn.ondragstart = (e) => { e.target.classList.add('dragging'); e.dataTransfer.setData('text/plain', acc.id); };
-                    btn.ondragend = (e) => e.target.classList.remove('dragging');
-                    btn.ondragover = (e) => e.preventDefault();
+                    btn.ondragstart = (e) => { e.dataTransfer.setData('text/id', acc.id); };
                     btn.ondrop = async (e) => {
-                        e.preventDefault();
-                        const draggedId = e.dataTransfer.getData('text/plain');
-                        if (draggedId === acc.id) return;
-                        
-                        const draggedAcc = accounts.find(a => a.id === draggedId);
-                        const targetAcc = accounts.find(a => a.id === acc.id);
-                        if (draggedAcc && targetAcc) {
-                            const dOrder = draggedAcc.order || 0;
-                            const tOrder = targetAcc.order || 0;
-                            await updateDoc(doc(db, 'artifacts', firestoreId, 'public', 'data', 'accounts', draggedId), { order: tOrder });
-                            await updateDoc(doc(db, 'artifacts', firestoreId, 'public', 'data', 'accounts', acc.id), { order: dOrder });
+                        const dragId = e.dataTransfer.getData('text/id');
+                        if (dragId === acc.id) return;
+                        const dAcc = accounts.find(a => a.id === dragId);
+                        const tAcc = accounts.find(a => a.id === acc.id);
+                        if (dAcc && tAcc) {
+                            await updateDoc(doc(db, 'artifacts', firestoreId, 'public', 'data', 'accounts', dragId), { order: tAcc.order || 0 });
+                            await updateDoc(doc(db, 'artifacts', firestoreId, 'public', 'data', 'accounts', acc.id), { order: dAcc.order || 0 });
                         }
                     };
+                    btn.ondragover = (e) => e.preventDefault();
                 }
+                btn.onclick = () => window.setAccount(acc.name);
                 container.appendChild(btn);
             });
         };
@@ -510,10 +607,11 @@
                 if(log.mapping) log.mapping.forEach((target, src) => { if(target !== -1 && target < 5) { matrix[src][target]++; startTotals[src]++; } });
             });
             for (let s = 0; s < 5; s++) {
+                const rowWrap = document.createElement('div');
+                rowWrap.className = 'matrix-grid-row';
                 const head = document.createElement('div');
-                head.className = "matrix-cell border-none font-black text-yellow-400/50 text-[10px] uppercase";
-                head.innerText = `S${s+1}`;
-                body.appendChild(head);
+                head.className = "flex items-center justify-center font-black text-amber-900/20 text-xs uppercase";
+                head.innerText = `S${s+1}`; rowWrap.appendChild(head);
                 for (let r = 0; r < 5; r++) {
                     const count = matrix[s][r];
                     const percent = startTotals[s] > 0 ? (count / startTotals[s]) : 0;
@@ -521,18 +619,17 @@
                     let bg = "heatmap-low";
                     if (percent >= 0.4) bg = "heatmap-high";
                     else if (percent >= 0.2) bg = "heatmap-mid";
-                    cell.className = `matrix-cell ${count > 0 ? bg : ''} font-black transition-all hover:scale-105`;
+                    cell.className = `matrix-cell ${count > 0 ? bg : ''} transition-all hover:scale-[1.03] cursor-help shadow-sm`;
                     cell.innerHTML = count > 0 ? `${Math.round(percent * 100)}%` : '-';
                     cell.onmouseenter = (e) => {
                         const tip = document.getElementById('matrix-tooltip');
-                        tip.style.display = 'block';
-                        tip.style.left = (e.clientX + 10) + 'px';
-                        tip.style.top = (e.clientY + 10) + 'px';
-                        tip.innerHTML = `<p class="text-yellow-400 font-black">對位: S${s+1}→R${r+1}</p><p class="text-white text-[10px]">樣本: ${count}</p>`;
+                        tip.style.display = 'block'; tip.style.left = (e.clientX + 10) + 'px'; tip.style.top = (e.clientY + 10) + 'px';
+                        tip.innerHTML = `<p class="font-black text-amber-900 text-xs">S${s+1}→R${r+1}</p><p class="text-amber-800 text-[10px]">樣本: ${count}</p>`;
                     };
                     cell.onmouseleave = () => document.getElementById('matrix-tooltip').style.display = 'none';
-                    body.appendChild(cell);
+                    rowWrap.appendChild(cell);
                 }
+                body.appendChild(rowWrap);
             }
         };
 
@@ -545,8 +642,7 @@
             for (let i = 0; i < 24; i++) {
                 const btn = document.createElement('button');
                 btn.className = `filter-btn ${activeHourFilter === i ? 'active' : ''}`;
-                btn.innerText = i;
-                btn.onclick = () => window.setHourFilter(i);
+                btn.innerText = i; btn.onclick = () => window.setHourFilter(i);
                 container.appendChild(btn);
             }
         };
@@ -557,32 +653,28 @@
             const months = [...new Set(history.map(l => `${l.y}-${String(l.m).padStart(2,'0')}`))].sort().reverse();
             months.forEach(m => {
                 const btn = document.createElement('button');
-                btn.className = `filter-btn px-2 py-1 ${activeMonthFilter === m ? 'active' : ''}`;
-                btn.innerText = m;
-                btn.onclick = () => window.setMonthFilter(m);
+                btn.className = `filter-btn px-4 py-1.5 ${activeMonthFilter === m ? 'active' : ''}`;
+                btn.innerText = m; btn.onclick = () => window.setMonthFilter(m);
                 container.appendChild(btn);
             });
         };
 
-        // --- 啟動程序 ---
         const startApp = async () => {
-            lucide.createIcons();
-            renderHourSelector();
+            lucide.createIcons(); renderHourSelector();
             setInterval(() => { document.getElementById('live-clock').innerText = new Date().toTimeString().split(' ')[0]; }, 1000);
-
             try {
-                const app = initializeApp(myFirebaseConfig);
-                db = getFirestore(app);
-                auth = getAuth(app);
+                const app = initializeApp(myFirebaseConfig); db = getFirestore(app); auth = getAuth(app);
                 await signInAnonymously(auth);
                 onAuthStateChanged(auth, (u) => {
                     user = u;
                     if(u) {
-                        document.getElementById('cloud-status').innerText = "已連線";
-                        document.getElementById('cloud-status-dot').classList.replace('bg-slate-500', 'bg-yellow-400');
+                        document.getElementById('cloud-status').innerText = "數據就緒";
+                        document.getElementById('cloud-status-dot').classList.replace('bg-slate-300', 'bg-emerald-500');
                         onSnapshot(collection(db, 'artifacts', firestoreId, 'public', 'data', 'logs'), (snap) => {
-                            history = snap.docs.map(d => d.data());
+                            rawHistoryData = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                            history = rawHistoryData.map(d => ({ ...d }));
                             renderMonthSelector(); renderMatrix();
+                            if(!document.getElementById('history-modal').classList.contains('hidden')) renderHistoryList();
                             document.getElementById('db-count').innerText = history.length;
                         });
                         onSnapshot(collection(db, 'artifacts', firestoreId, 'public', 'data', 'accounts'), (snap) => {
@@ -591,7 +683,7 @@
                         });
                     }
                 });
-            } catch (e) { console.error("Firebase Config Error"); }
+            } catch (e) { console.error("Config Error"); }
         };
         startApp();
     </script>
