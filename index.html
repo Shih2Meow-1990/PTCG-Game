@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PTCG 得卡挑戰 | 數據終端 v4.8</title>
+    <title>PTCG 得卡挑戰 | 戰術數據終端 v4.9</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     
@@ -158,7 +158,7 @@
         .animate-status { animation: pulse-brown 2s infinite; }
         .dragging { opacity: 0.3; transform: scale(0.95); }
 
-        /* 歷史清單交互修復 */
+        /* 歷史清單交互 */
         .history-item {
             display: flex;
             align-items: center;
@@ -180,7 +180,6 @@
             text-transform: uppercase;
             border: 1px solid #fca5a5;
         }
-        .btn-delete-log:hover { background: #ef4444; color: white; }
     </style>
 </head>
 <body class="flex justify-center">
@@ -196,7 +195,7 @@
                     <i data-lucide="zap" class="text-yellow-400 w-4 h-4"></i> 
                 </div>
                 <h1 class="text-lg font-black italic tracking-tighter text-amber-900 uppercase">
-                    PTCG 得卡挑戰 <span class="text-amber-700 font-bold not-italic text-[9px] opacity-40 ml-1">v4.8 ADMIN</span>
+                    PTCG 得卡挑戰 <span class="text-amber-700 font-bold not-italic text-[9px] opacity-40 ml-1">v4.9 DASHBOARD</span>
                 </h1>
                 <nav id="account-tabs" class="flex gap-0.5 overflow-x-auto no-scrollbar ml-2"></nav>
                 <div class="flex items-center gap-2 ml-1">
@@ -221,7 +220,7 @@
         <!-- DASHBOARD BODY -->
         <div class="grid grid-cols-12 gap-4 flex-1 min-h-0">
             
-            <!-- LEFT COLUMN -->
+            <!-- LEFT COLUMN: 控制塔 -->
             <div class="col-span-3 flex flex-col min-h-0 space-y-2.5">
                 
                 <!-- 1. 量子對位操作台 -->
@@ -234,6 +233,7 @@
                     </div>
 
                     <div class="flex flex-col items-center space-y-3">
+                        <!-- START -->
                         <div class="w-full flex flex-col items-center gap-1.5">
                             <span class="text-[8px] text-amber-800/30 font-black uppercase italic">1. 初始分布</span>
                             <div class="flex flex-col gap-2 w-full px-1">
@@ -251,6 +251,7 @@
 
                         <div class="opacity-10 leading-none"><i data-lucide="chevron-down" class="w-3 h-3 text-amber-900"></i></div>
 
+                        <!-- RESULT -->
                         <div class="w-full flex flex-col items-center gap-1.5">
                             <div class="flex flex-col gap-2 w-full px-1">
                                 <div class="flex justify-center gap-2.5">
@@ -298,10 +299,10 @@
                 </div>
             </div>
 
-            <!-- RIGHT COLUMN -->
+            <!-- RIGHT COLUMN: 鋪滿型熱力矩陣 (優化標籤) -->
             <div class="col-span-9 flex flex-col min-h-0">
                 <div class="bg-white border-2 border-amber-900/10 p-5 rounded-[2.8rem] shadow-xl flex-1 flex flex-col min-h-0 relative">
-                    <div class="flex justify-between items-center mb-4 shrink-0">
+                    <div class="flex justify-between items-center mb-4 shrink-0 px-2">
                         <h3 class="text-sm font-black text-amber-900 uppercase tracking-widest flex items-center gap-2">
                             <i data-lucide="layout-grid"></i> 即時數據熱力圖 (LIVE_MATRIX)
                         </h3>
@@ -309,7 +310,7 @@
                             <div class="bg-amber-900 text-yellow-400 px-5 py-2 rounded-full font-black text-[10px] uppercase shadow-md">
                                 <span id="active-account-label">DANIEL</span>
                             </div>
-                            <div class="bg-amber-50 px-5 py-2 rounded-full border border-amber-900/5 font-black text-[10px] text-amber-700/60 uppercase">
+                            <div class="bg-amber-50 px-5 py-2 rounded-full border border-amber-900/5 font-black text-[10px] text-amber-700/60 uppercase shadow-inner">
                                 <span id="active-month-label">全部月份</span>
                             </div>
                         </div>
@@ -318,50 +319,50 @@
                     <div class="flex-1 min-h-0">
                         <div class="matrix-container">
                             <div class="grid grid-cols-6 gap-2 shrink-0 mb-1">
-                                <div class="flex items-center justify-center text-[10px] text-amber-800/30 font-black italic">Start \ End</div>
-                                <div class="flex items-center justify-center text-xs font-black text-amber-900/40">R1</div>
-                                <div class="flex items-center justify-center text-xs font-black text-amber-900/40">R2</div>
-                                <div class="flex items-center justify-center text-xs font-black text-amber-900/40">R3</div>
-                                <div class="flex items-center justify-center text-xs font-black text-amber-900/40">R4</div>
-                                <div class="flex items-center justify-center text-xs font-black text-amber-900/40">R5</div>
+                                <!-- 頂部橫軸更新為 End 1...End 5 -->
+                                <div class="flex items-center justify-center text-[9px] text-amber-800/25 font-black italic uppercase">Start \ End</div>
+                                <div class="flex items-center justify-center text-[10px] font-black text-amber-900/35 uppercase">End 1</div>
+                                <div class="flex items-center justify-center text-[10px] font-black text-amber-900/35 uppercase">End 2</div>
+                                <div class="flex items-center justify-center text-[10px] font-black text-amber-900/35 uppercase">End 3</div>
+                                <div class="flex items-center justify-center text-[10px] font-black text-amber-900/35 uppercase">End 4</div>
+                                <div class="flex items-center justify-center text-[10px] font-black text-amber-900/35 uppercase">End 5</div>
                             </div>
+                            <!-- 左側縱軸由 JS 更新為 Start 1...Start 5 -->
                             <div id="matrix-body" class="contents"></div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
+        
+        <footer class="text-center opacity-10 py-1 shrink-0">
+            <p class="text-[8px] text-amber-900 uppercase tracking-[0.6em] font-black">Neural Intelligence Dashboard | v4.9 Daniel</p>
+        </footer>
     </div>
 
     <!-- MODAL: 新增團隊 -->
     <div id="account-modal" class="fixed inset-0 bg-amber-900/40 backdrop-blur-xl hidden z-[3000] flex items-center justify-center p-8">
-        <div class="bg-white border-4 border-amber-900 p-10 rounded-[3rem] w-full max-w-sm shadow-2xl text-center">
+        <div class="bg-white border-4 border-amber-900 p-12 rounded-[4rem] w-full max-w-sm shadow-2xl text-center">
             <h4 class="text-xl font-black text-amber-900 uppercase mb-8 tracking-widest">新增團隊軌道</h4>
             <input type="text" id="new-account-name" placeholder="團隊代號..." class="w-full bg-amber-50 border-2 border-amber-900/10 p-5 rounded-2xl text-xl focus:border-yellow-400 outline-none mb-10 text-amber-900 text-center font-black uppercase">
             <div class="flex gap-4">
-                <button onclick="window.closeAccountModal()" class="flex-1 py-4 text-sm font-black uppercase hover:text-red-500">取消</button>
-                <button onclick="window.confirmAddAccount()" class="flex-1 py-4 bg-yellow-400 text-amber-900 border-2 border-amber-900 rounded-2xl font-black uppercase active:scale-95 shadow-md">同步</button>
+                <button onclick="window.closeAccountModal()" class="flex-1 py-4 text-sm font-black uppercase hover:text-red-600 transition-colors">取消</button>
+                <button onclick="window.confirmAddAccount()" class="flex-1 py-4 bg-yellow-400 text-amber-900 border-2 border-amber-900 rounded-2xl font-black uppercase active:scale-95 shadow-md">同步連線</button>
             </div>
         </div>
     </div>
 
-    <!-- MODAL: 歷史紀錄與管理 (增加層級) -->
+    <!-- MODAL: 歷史紀錄 -->
     <div id="history-modal" class="fixed inset-0 bg-amber-900/60 backdrop-blur-2xl hidden z-[3000] flex items-center justify-center p-8">
         <div class="bg-white border-4 border-amber-900 p-8 rounded-[4rem] w-full max-w-lg shadow-2xl flex flex-col h-[75vh]">
             <div class="flex justify-between items-center mb-6 shrink-0">
                 <h4 class="text-2xl font-black text-amber-900 uppercase tracking-widest">數據日誌</h4>
                 <button onclick="window.closeHistoryModal()" class="w-10 h-10 flex items-center justify-center bg-amber-100 rounded-full text-amber-900 font-black">✕</button>
             </div>
-            
-            <!-- List Container -->
-            <div id="history-list" class="flex-1 overflow-y-auto pr-2 no-scrollbar border-y-2 border-amber-900/5 bg-amber-50/20 rounded-xl">
-                <!-- 內容由 JS 填充 -->
-            </div>
-
-            <!-- Global Actions -->
+            <div id="history-list" class="flex-1 overflow-y-auto pr-2 no-scrollbar border-y-2 border-amber-900/5 bg-amber-50/20 rounded-xl"></div>
             <div class="mt-6 pt-4 shrink-0 text-center">
                 <p class="text-[10px] text-red-500 font-black mb-4 uppercase tracking-[0.2em]">⚠️ 緊急指令：清空全域數據 ⚠️</p>
-                <button onclick="window.handleGlobalReset()" class="w-full py-5 bg-red-500 text-white border-b-4 border-red-800 rounded-2xl font-black uppercase text-sm hover:translate-y-0.5 active:border-b-0 transition-all shadow-lg">徹底歸零資料庫 (輸入 RESET ALL)</button>
+                <button onclick="window.handleGlobalReset()" class="w-full py-5 bg-red-500 text-white border-b-4 border-red-800 rounded-2xl font-black uppercase text-sm active:translate-y-0.5 active:border-b-0 transition-all shadow-lg">徹底歸零資料庫 (RESET ALL)</button>
             </div>
         </div>
     </div>
@@ -430,11 +431,11 @@
             if (isFull) {
                 btn.disabled = false;
                 btn.className = "w-full mt-3 py-3 bg-yellow-400 text-amber-900 border-2 border-amber-900 font-black rounded-3xl text-sm transition-all cursor-pointer shadow-lg active:scale-95 uppercase tracking-widest";
-                btn.innerText = "⚡ 數據同步 ⚡";
+                btn.innerText = "⚡ 同步電力數據 ⚡";
             } else {
                 btn.disabled = true;
                 btn.className = "w-full mt-3 py-3 bg-slate-100 text-slate-300 font-black rounded-3xl text-sm cursor-not-allowed border border-slate-200";
-                btn.innerText = "等待對位";
+                btn.innerText = "等待對位數據";
             }
         };
 
@@ -461,7 +462,7 @@
             } catch (e) { console.error(e); }
         };
 
-        // --- 歷史管理修復 ---
+        // --- 歷史紀錄管理 ---
         window.openHistoryModal = () => {
             document.getElementById('history-modal').classList.remove('hidden');
             renderHistoryList();
@@ -471,20 +472,16 @@
         const renderHistoryList = () => {
             const container = document.getElementById('history-list');
             container.innerHTML = '';
-            
             const sorted = [...rawHistoryData].sort((a,b) => b.t - a.t).slice(0, 30);
-            
             if (sorted.length === 0) {
                 container.innerHTML = '<div class="py-20 text-center opacity-30 italic">暫無數據紀錄</div>';
                 return;
             }
-
             sorted.forEach(item => {
                 const div = document.createElement('div');
                 div.className = 'history-item';
                 const time = new Date(item.t).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
                 const path = item.mapping.map(m => m + 1).join('→');
-                
                 div.innerHTML = `
                     <div class="flex flex-col">
                         <div class="flex items-center gap-2">
@@ -493,7 +490,7 @@
                         </div>
                         <div class="mt-1 font-black text-amber-900 text-sm tracking-widest">${path}</div>
                     </div>
-                    <button onclick="window.deleteSingleLog('${item.id}')" class="btn-delete-log">刪除紀錄</button>
+                    <button onclick="window.deleteSingleLog('${item.id}')" class="btn-delete-log">刪除</button>
                 `;
                 container.appendChild(div);
             });
@@ -503,20 +500,19 @@
             if (confirm("確定刪除這筆錄入錯誤的數據嗎？")) {
                 try {
                     await deleteDoc(doc(db, 'artifacts', firestoreId, 'public', 'data', 'logs', id));
-                    // 監聽器會自動觸發 renderHistoryList()
-                } catch (e) { alert("權限不足或網路異常。"); }
+                } catch (e) { alert("權限不足。"); }
             }
         };
 
         window.handleGlobalReset = async () => {
-            const code = prompt("🚨 注意：此操作將清空所有數據！\n請輸入 RESET ALL 確認：");
+            const code = prompt("🚨 警告：此操作將歸零數據庫！\n請輸入 RESET ALL 確認：");
             if (code === "RESET ALL") {
                 try {
                     const snap = await getDocs(collection(db, 'artifacts', firestoreId, 'public', 'data', 'logs'));
                     const batch = writeBatch(db);
                     snap.docs.forEach(d => batch.delete(d.ref));
                     await batch.commit();
-                    alert("數據庫已重置。");
+                    alert("數據庫已清空。");
                     window.closeHistoryModal();
                 } catch (e) { alert("重置失敗。"); }
             }
@@ -609,9 +605,12 @@
             for (let s = 0; s < 5; s++) {
                 const rowWrap = document.createElement('div');
                 rowWrap.className = 'matrix-grid-row';
+                
                 const head = document.createElement('div');
-                head.className = "flex items-center justify-center font-black text-amber-900/20 text-xs uppercase";
-                head.innerText = `S${s+1}`; rowWrap.appendChild(head);
+                // 左側縱軸更新為 Start 1...Start 5
+                head.className = "flex items-center justify-center font-black text-amber-900/25 text-[10px] uppercase";
+                head.innerText = `Start ${s+1}`; rowWrap.appendChild(head);
+                
                 for (let r = 0; r < 5; r++) {
                     const count = matrix[s][r];
                     const percent = startTotals[s] > 0 ? (count / startTotals[s]) : 0;
@@ -624,7 +623,7 @@
                     cell.onmouseenter = (e) => {
                         const tip = document.getElementById('matrix-tooltip');
                         tip.style.display = 'block'; tip.style.left = (e.clientX + 10) + 'px'; tip.style.top = (e.clientY + 10) + 'px';
-                        tip.innerHTML = `<p class="font-black text-amber-900 text-xs">S${s+1}→R${r+1}</p><p class="text-amber-800 text-[10px]">樣本: ${count}</p>`;
+                        tip.innerHTML = `<p class="font-black text-amber-900 text-xs">分析: Start ${s+1} → End ${r+1}</p><p class="text-amber-800 text-[10px] font-bold">樣本數: ${count}</p>`;
                     };
                     cell.onmouseleave = () => document.getElementById('matrix-tooltip').style.display = 'none';
                     rowWrap.appendChild(cell);
@@ -668,7 +667,7 @@
                 onAuthStateChanged(auth, (u) => {
                     user = u;
                     if(u) {
-                        document.getElementById('cloud-status').innerText = "數據就緒";
+                        document.getElementById('cloud-status').innerText = "數據已同步";
                         document.getElementById('cloud-status-dot').classList.replace('bg-slate-300', 'bg-emerald-500');
                         onSnapshot(collection(db, 'artifacts', firestoreId, 'public', 'data', 'logs'), (snap) => {
                             rawHistoryData = snap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -683,7 +682,7 @@
                         });
                     }
                 });
-            } catch (e) { console.error("Config Error"); }
+            } catch (e) { console.error("Firebase Error"); }
         };
         startApp();
     </script>
