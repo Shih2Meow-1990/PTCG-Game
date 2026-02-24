@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PTCG 得卡挑戰 | Cloud Nexus v2.2</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, doc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+
+        // 1. Firebase 初始化 (使用環境配置)
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+        // 狀態管理
+        let history = [];
+        let accounts = ['DANIEL'];
+        let user = null;
+        let activeAccount = 'DANIEL';
+        let activeHourFilter = 'all';
+        let activeMonthFilter = 'all';
+        let currentMapping = new Array(5).fill(-1);
+        let activeSource = -1;
+
+        // UI 元素
+        const ui = {
+            accountTabs: document.getElementById('account-tabs'),
+            matrixBody: document.getElementById('matrix-body'),
+            hourSelector: document.getElementById('hour-selector'),
+            monthSelector: document.getElementById('month-selector'),
+            dbCount: document.getElementById('db-count'),
+            liveClock: document.getElementById('live-clock'),
+            commitBtn: document.getElementById('commit-btn'),
+            tooltip: document.getElementById('matrix-tooltip'),
+            activeAccountLabel: document.getElementById('active-account-label'),
+            activeMonthLabel: document.getElementById('active-month-label'),
+            currentAccountDisplay: document.getElementById('current-account-display'),
+            statusText: document.getElementById('cloud-status'),
+            statusDot: document.getElementById('cloud-status-dot')
+        };
+
+        // 2. 身份驗證 (Rule 3)
+        const initApp = async () => {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (err) {
+                ui.statusText.innerText = "連線失敗";
+                ui.statusDot.classList.add('bg-red-500');
+            }
+        };
+
+        onAuthStateChanged(auth, (u) => {
+            user = u;
+            if (u) {
+                ui.statusText.innerText = "雲端同步中";
+                ui.statusDot.classList.replace('bg-slate-500', 'bg-emerald-500');
+                startDataSync();
+            }
+        });
+
+        // 3. 雲端數據即時同步
+        const startDataSync = () => {
+            if (!user) return;
+
+            // 同步紀錄 (Rule 1 & 2)
+            const logsRef = collection(db, 'artifacts', appId, 'public', 'data', 'logs');
+            onSnapshot(logsRef, (snapshot) => {
+                history = snapshot.docs.map(doc => doc.data());
+                renderMonthSelector();
+                renderMatrix();
+                ui.dbCount.innerText = history.length;
+                ui.statusText.innerText = "數據已同步";
+            }, (error) => {
+                ui.statusText.innerText = "同步錯誤";
+            });
+
+            // 同步帳號清單
+            const accountsRef = collection(db, 'artifacts', appId, 'public', 'data', 'accounts');
+            onSnapshot(accountsRef, (snapshot) => {
+                const cloudAccounts = snapshot.docs.map(doc => doc.data().name);
+                accounts = [...new Set(['DANIEL', ...cloudAccounts])];
+                renderAccountTabs();
+            });
+        };
+
+        // 基礎功能
+        setInterval(() => {
+            const now = new Date();
+            ui.liveClock.innerText = now.toTimeString().split(' ')[0];
+        }, 1000);
+
+        window.selectSource = (idx) => {
+            activeSource = idx;
+            document.querySelectorAll('[id^="start-"]').forEach(el => el.classList.remove('selected'));
+            document.getElementById(`start-${idx}`).classList.add('selected');
+        };
+
+        window.selectTarget = (idx) => {
+            if (activeSource === -1) return;
+            currentMapping.forEach((target, src) => { if (target === idx) currentMapping[src] = -1; });
+            currentMapping[activeSource] = idx;
+            updateMappingUI();
+            const nextEmpty = currentMapping.findIndex(m => m === -1);
+            if (nextEmpty !== -1) window.selectSource(nextEmpty);
+            else {
+                activeSource = -1;
+                document.querySelectorAll('[id^="start-"]').forEach(el => el.classList.remove('selected'));
+            }
+            checkCommitState();
+        };
+
+        const updateMappingUI = () => {
+            document.querySelectorAll('[id^="end-"]').forEach(el => {
+                el.className = "mapping-node";
+                el.innerHTML = parseInt(el.id.split('-')[1]) + 1;
+            });
+            document.querySelectorAll('[id^="start-"]').forEach((el, i) => {
+                el.className = `mapping-node ${currentMapping[i] !== -1 ? 'color-' + i : ''} ${activeSource === i ? 'selected' : ''}`;
+            });
+            currentMapping.forEach((targetIdx, srcIdx) => {
+                if (targetIdx !== -1) {
+                    const targetEl = document.getElementById(`end-${targetIdx}`);
+                    targetEl.classList.add(`color-${srcIdx}`);
+                    targetEl.innerHTML = `S${srcIdx + 1}`;
+                }
+            });
+        };
+
+        const checkCommitState = () => {
+            const isFull = currentMapping.every(m => m !== -1);
+            if (isFull) {
+                ui.commitBtn.disabled = false;
+                ui.commitBtn.className = "w-full mt-10 py-5 bg-emerald-500 text-black font-black rounded-2xl text-xs uppercase tracking-[0.2em] transition-all cursor-pointer shadow-lg shadow-emerald-500/40";
+                ui.commitBtn.innerText = "提交並同步紀錄 (UPLOAD LOG)";
+            } else {
+                ui.commitBtn.disabled = true;
+                ui.commitBtn.className = "w-full mt-10 py-5 bg-sky-500/20 text-sky-400 font-black rounded-2xl text-xs uppercase tracking-[0.2em] transition-all cursor-not-allowed";
+                ui.commitBtn.innerText = "等待對位數據";
+            }
+        };
+
+        window.commitMapping = async () => {
+            if (!user) return;
+            const now = new Date();
+            const logAccount = activeAccount === 'ALL' ? 'DANIEL' : activeAccount;
+            const logData = {
+                mapping: [...currentMapping],
+                t: Date.now(),
+                h: now.getHours(),
+                m: now.getMonth() + 1,
+                y: now.getFullYear(),
+                acc: logAccount,
+                uid: user.uid
+            };
+
+            ui.commitBtn.innerText = "正在上傳...";
+            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'logs'), logData);
+            window.resetMapping();
+        };
+
+        window.resetMapping = () => {
+            currentMapping = new Array(5).fill(-1);
+            activeSource = -1;
+            updateMappingUI();
+            checkCommitState();
+        };
+
+        window.setAccount = (acc) => {
+            activeAccount = acc;
+            ui.activeAccountLabel.innerText = acc;
+            ui.currentAccountDisplay.innerText = `紀錄帳號: ${acc === 'ALL' ? 'DANIEL' : acc}`;
+            renderAccountTabs();
+            renderMatrix();
+        };
+
+        window.setHourFilter = (h) => {
+            activeHourFilter = h;
+            renderHourSelector();
+            renderMatrix();
+        };
+
+        window.setMonthFilter = (mKey) => {
+            activeMonthFilter = mKey;
+            ui.activeMonthLabel.innerText = mKey === 'all' ? '全部月份' : mKey;
+            renderMonthSelector();
+            renderMatrix();
+        };
+
+        const renderAccountTabs = () => {
+            ui.accountTabs.innerHTML = '';
+            ['ALL', ...accounts].forEach(acc => {
+                const btn = document.createElement('button');
+                btn.className = `tab-btn ${activeAccount === acc ? 'active' : ''}`;
+                btn.innerText = acc === 'ALL' ? '全域視角' : acc;
+                btn.onclick = () => window.setAccount(acc);
+                ui.accountTabs.appendChild(btn);
+            });
+        };
+
+        const renderHourSelector = () => {
+            ui.hourSelector.innerHTML = '';
+            for (let i = 0; i < 24; i++) {
+                const btn = document.createElement('button');
+                btn.className = `filter-btn ${activeHourFilter === i ? 'active' : ''}`;
+                btn.innerText = i;
+                btn.onclick = () => window.setHourFilter(i);
+                ui.hourSelector.appendChild(btn);
+            }
+        };
+
+        const renderMonthSelector = () => {
+            ui.monthSelector.innerHTML = '';
+            const availableMonths = [...new Set(history.map(l => `${l.y}-${String(l.m).padStart(2,'0')}`))].sort().reverse();
+            availableMonths.forEach(m => {
+                const btn = document.createElement('button');
+                btn.className = `filter-btn text-[10px] px-3 py-1 ${activeMonthFilter === m ? 'active' : ''}`;
+                btn.innerText = m;
+                btn.onclick = () => window.setMonthFilter(m);
+                ui.monthSelector.appendChild(btn);
+            });
+        };
+
+        const renderMatrix = () => {
+            ui.matrixBody.innerHTML = '';
+            let filtered = history;
+            if (activeAccount !== 'ALL') filtered = filtered.filter(l => l.acc === activeAccount);
+            if (activeHourFilter !== 'all') filtered = filtered.filter(l => l.h === activeHourFilter);
+            if (activeMonthFilter !== 'all') {
+                const [y, m] = activeMonthFilter.split('-').map(Number);
+                filtered = filtered.filter(l => l.y === y && l.m === m);
+            }
+
+            let matrix = Array.from({length: 5}, () => new Array(5).fill(0));
+            let startTotals = new Array(5).fill(0);
+
+            filtered.forEach(log => {
+                log.mapping.forEach((target, src) => {
+                    matrix[src][target]++;
+                    startTotals[src]++;
+                });
+            });
+
+            for (let s = 0; s < 5; s++) {
+                const header = document.createElement('div');
+                header.className = "matrix-cell border-none font-black text-sky-500 text-xs";
+                header.innerText = `S${s+1}`;
+                ui.matrixBody.appendChild(header);
+
+                for (let r = 0; r < 5; r++) {
+                    const count = matrix[s][r];
+                    const percent = startTotals[s] > 0 ? (count / startTotals[s]) : 0;
+                    const cell = document.createElement('div');
+                    let bgClass = "heatmap-low";
+                    if (percent >= 0.4) bgClass = "heatmap-high";
+                    else if (percent >= 0.2) bgClass = "heatmap-mid";
+
+                    cell.className = `matrix-cell ${count > 0 ? bgClass : ''} rounded-md text-[10px] cursor-help`;
+                    cell.innerHTML = count > 0 ? `${Math.round(percent * 100)}%` : '-';
+                    
+                    cell.onmouseenter = (e) => {
+                        ui.tooltip.style.display = 'block';
+                        ui.tooltip.style.left = (e.clientX + 10) + 'px';
+                        ui.tooltip.style.top = (e.clientY + 10) + 'px';
+                        ui.tooltip.innerHTML = `
+                            <p class="text-emerald-400 font-bold mb-1 uppercase tracking-widest text-[8px]">集合分析</p>
+                            <p class="text-white text-[10px]">路徑: ${s+1} → ${r+1}</p>
+                            <div class="h-px bg-white/5 my-2"></div>
+                            <p class="text-slate-500 text-[9px]">樣本數: n=${count}</p>
+                            <p class="text-slate-600 text-[8px] italic mt-1">${activeAccount} | ${activeMonthFilter}</p>
+                        `;
+                    };
+                    cell.onmouseleave = () => ui.tooltip.style.display = 'none';
+                    ui.matrixBody.appendChild(cell);
+                }
+            }
+        };
+
+        window.addNewAccount = () => {
+            document.getElementById('account-modal').classList.remove('hidden');
+            document.getElementById('new-account-name').focus();
+        };
+
+        window.closeAccountModal = () => document.getElementById('account-modal').classList.add('hidden');
+
+        window.confirmAddAccount = async () => {
+            const name = document.getElementById('new-account-name').value.trim().toUpperCase();
+            if (name && !accounts.includes(name) && name !== 'ALL') {
+                const accRef = doc(db, 'artifacts', appId, 'public', 'data', 'accounts', name);
+                await setDoc(accRef, { name: name });
+                window.setAccount(name);
+            }
+            document.getElementById('new-account-name').value = '';
+            window.closeAccountModal();
+        };
+
+        initApp().then(() => {
+            renderHourSelector();
+            lucide.createIcons();
+        });
+    </script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=JetBrains+Mono:wght@400;700&display=swap');
+        body {
+            background-color: #010204;
+            color: #f1f5f9;
+            font-family: 'JetBrains Mono', monospace;
+            overflow-x: hidden;
+        }
+        .matrix-cell { aspect-ratio: 1; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05); font-size: 11px; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease; }
+        .mapping-node { width: 44px; height: 60px; background: rgba(255, 255, 255, 0.05); border: 2px solid rgba(255, 255, 255, 0.1); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: bold; cursor: pointer; transition: all 0.2s ease; position: relative; }
+        .mapping-node.selected { border-color: #38bdf8; background: rgba(56, 189, 248, 0.2); box-shadow: 0 0 15px rgba(56, 189, 248, 0.4); }
+        .color-0 { color: #f87171; border-color: #f87171; background: rgba(248, 113, 113, 0.1); }
+        .color-1 { color: #fbbf24; border-color: #fbbf24; background: rgba(251, 191, 36, 0.1); }
+        .color-2 { color: #34d399; border-color: #34d399; background: rgba(52, 211, 153, 0.1); }
+        .color-3 { color: #38bdf8; border-color: #38bdf8; background: rgba(56, 189, 248, 0.1); }
+        .color-4 { color: #a855f7; border-color: #a855f7; background: rgba(168, 85, 247, 0.1); }
+        .tab-btn { padding: 8px 16px; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; border-bottom: 2px solid transparent; transition: all 0.3s ease; color: #64748b; }
+        .tab-btn.active { color: #38bdf8; border-color: #38bdf8; background: rgba(56, 189, 248, 0.05); }
+        .filter-btn { padding: 4px 8px; font-size: 9px; text-align: center; border: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.02); transition: all 0.2s ease; border-radius: 4px; }
+        .filter-btn.active { background: #38bdf8; color: #000; font-weight: bold; border-color: #38bdf8; }
+        .heatmap-high { background: rgba(56, 189, 248, 0.85); color: #000; font-weight: 900; }
+        .heatmap-mid { background: rgba(56, 189, 248, 0.4); }
+        .heatmap-low { background: rgba(56, 189, 248, 0.1); }
+        #matrix-tooltip { position: fixed; pointer-events: none; background: rgba(15, 23, 42, 0.98); border: 1px solid #38bdf8; padding: 10px; border-radius: 10px; display: none; z-index: 1000; box-shadow: 0 10px 30px rgba(0,0,0,0.5); font-size: 10px; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+<body class="p-4 md:p-8 flex flex-col items-center min-h-screen">
+
+    <div id="matrix-tooltip"></div>
+
+    <div class="w-full max-w-6xl">
+        <nav class="flex items-center gap-2 mb-8 border-b border-white/5 overflow-x-auto no-scrollbar">
+            <div id="account-tabs" class="flex"></div>
+            <button onclick="addNewAccount()" class="tab-btn hover:text-white flex items-center gap-1">
+                <i data-lucide="plus" class="w-3 h-3"></i> 新增帳號
+            </button>
+        </nav>
+
+        <header class="text-center mb-10">
+            <h1 class="text-3xl font-black italic tracking-tighter text-white uppercase flex items-center justify-center gap-3">
+                <i data-lucide="zap" class="text-sky-400"></i> PTCG 得卡挑戰 <span class="text-sky-400 font-normal not-italic text-sm ml-2 tracking-widest opacity-60">| CLOUD v2.2</span>
+            </h1>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <div class="lg:col-span-5 space-y-6">
+                <div class="bg-white/5 p-6 rounded-[2rem] border border-white/10 shadow-2xl">
+                    <div class="flex justify-between items-center mb-8">
+                        <div>
+                            <h3 class="text-[10px] font-black text-sky-500 uppercase tracking-widest">位移路徑追蹤</h3>
+                            <p id="current-account-display" class="text-[8px] text-slate-500 mt-1 uppercase tracking-widest">紀錄帳號: Daniel</p>
+                        </div>
+                        <button onclick="resetMapping()" class="text-[8px] text-slate-500 hover:text-white uppercase px-2 py-1 border border-white/5 rounded">重置</button>
+                    </div>
+
+                    <div class="flex flex-col gap-12 items-center relative py-4">
+                        <div class="flex flex-col items-center gap-2">
+                            <span class="text-[8px] text-slate-600 uppercase tracking-widest font-bold text-center">Start / 初始</span>
+                            <div class="flex gap-2">
+                                <div id="start-0" onclick="selectSource(0)" class="mapping-node text-xs">1</div>
+                                <div id="start-1" onclick="selectSource(1)" class="mapping-node text-xs">2</div>
+                                <div id="start-2" onclick="selectSource(2)" class="mapping-node text-xs">3</div>
+                                <div id="start-3" onclick="selectSource(3)" class="mapping-node text-xs">4</div>
+                                <div id="start-4" onclick="selectSource(4)" class="mapping-node text-xs">5</div>
+                            </div>
+                        </div>
+                        <div class="h-px w-full bg-white/5 relative flex justify-center items-center">
+                            <div class="bg-black px-4 py-1 border border-white/10 rounded-full"><i data-lucide="repeat" class="w-3 h-3 text-sky-500"></i></div>
+                        </div>
+                        <div class="flex flex-col items-center gap-2">
+                            <div class="flex gap-2">
+                                <div id="end-0" onclick="selectTarget(0)" class="mapping-node text-xs">1</div>
+                                <div id="end-1" onclick="selectTarget(1)" class="mapping-node text-xs">2</div>
+                                <div id="end-2" onclick="selectTarget(2)" class="mapping-node text-xs">3</div>
+                                <div id="end-3" onclick="selectTarget(3)" class="mapping-node text-xs">4</div>
+                                <div id="end-4" onclick="selectTarget(4)" class="mapping-node text-xs">5</div>
+                            </div>
+                            <span class="text-[8px] text-emerald-500 uppercase tracking-widest font-bold text-center">Result / 結果</span>
+                        </div>
+                    </div>
+                    <button id="commit-btn" onclick="commitMapping()" disabled class="w-full mt-10 py-5 bg-sky-500/20 text-sky-400 font-black rounded-2xl text-xs uppercase tracking-[0.2em] transition-all cursor-not-allowed">等待對位數據</button>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-black/40 p-5 rounded-2xl border border-white/5 flex flex-col justify-center">
+                        <div class="flex items-center gap-2 mb-1">
+                            <div id="cloud-status-dot" class="w-1.5 h-1.5 rounded-full bg-slate-500 animate-pulse"></div>
+                            <span id="cloud-status" class="text-[8px] text-slate-500 uppercase tracking-widest">正在連線...</span>
+                        </div>
+                        <p id="live-clock" class="text-xl font-bold text-sky-400">00:00:00</p>
+                    </div>
+                    <div class="bg-black/40 p-5 rounded-2xl border border-white/5 text-right flex flex-col justify-center">
+                        <span class="text-[8px] text-slate-500 uppercase tracking-widest">集體累計樣本</span>
+                        <p id="db-count" class="text-xl font-bold text-white mt-1">0</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="lg:col-span-7 space-y-6">
+                <div class="bg-white/5 p-6 rounded-[2.5rem] border border-white/10 shadow-2xl relative overflow-hidden">
+                    <div class="flex justify-between items-center mb-8">
+                        <h3 class="text-xs font-black text-white uppercase tracking-widest">集合機率矩陣</h3>
+                        <div class="flex items-center gap-3">
+                            <div class="bg-black/40 px-3 py-1.5 rounded-full border border-white/10 flex items-center gap-2">
+                                <i data-lucide="database" class="w-3 h-3 text-sky-400"></i>
+                                <span id="active-account-label" class="text-[9px] text-sky-400 font-bold uppercase">Daniel</span>
+                            </div>
+                            <div class="bg-black/40 px-3 py-1.5 rounded-full border border-white/10 flex items-center gap-2">
+                                <i data-lucide="calendar" class="w-3 h-3 text-slate-400"></i>
+                                <span id="active-month-label" class="text-[9px] text-slate-400 font-bold uppercase">全部月份</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-6 gap-2 mb-10">
+                        <div class="matrix-cell border-none text-[8px] text-slate-700 italic">S \ R</div>
+                        <div class="matrix-cell border-none text-[10px] font-bold text-slate-500">R1</div>
+                        <div class="matrix-cell border-none text-[10px] font-bold text-slate-500">R2</div>
+                        <div class="matrix-cell border-none text-[10px] font-bold text-slate-500">R3</div>
+                        <div class="matrix-cell border-none text-[10px] font-bold text-slate-500">R4</div>
+                        <div class="matrix-cell border-none text-[10px] font-bold text-slate-500">R5</div>
+                        <div id="matrix-body" class="contents"></div>
+                    </div>
+                    <div class="space-y-6 pt-6 border-t border-white/5">
+                        <div>
+                            <div class="flex justify-between items-center mb-3">
+                                <span class="text-[9px] font-bold text-slate-500 uppercase tracking-widest text-center">月份過濾</span>
+                                <button onclick="setMonthFilter('all')" class="text-[8px] text-sky-400 underline uppercase tracking-widest">顯示全部</button>
+                            </div>
+                            <div id="month-selector" class="flex flex-wrap gap-2"></div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between items-center mb-3">
+                                <span class="text-[9px] font-bold text-slate-500 uppercase tracking-widest text-center">時段過濾</span>
+                                <button onclick="setHourFilter('all')" class="text-[8px] text-sky-400 underline uppercase tracking-widest">顯示全部</button>
+                            </div>
+                            <div class="grid grid-cols-12 gap-1" id="hour-selector"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div id="account-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md hidden z-[2000] flex items-center justify-center">
+        <div class="bg-slate-900 border border-white/10 p-8 rounded-3xl w-80 shadow-2xl">
+            <h4 class="text-xs font-black text-sky-400 uppercase mb-4 tracking-widest">註冊團隊帳號</h4>
+            <input type="text" id="new-account-name" placeholder="代號..." class="w-full bg-black border border-white/10 p-3 rounded-xl text-xs focus:border-sky-500 outline-none mb-4 text-white">
+            <div class="flex gap-2">
+                <button onclick="closeAccountModal()" class="flex-1 py-2 text-[10px] text-slate-500 uppercase font-bold">取消</button>
+                <button onclick="confirmAddAccount()" class="flex-1 py-2 bg-emerald-500 text-black rounded-xl text-[10px] uppercase font-bold">連線</button>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
